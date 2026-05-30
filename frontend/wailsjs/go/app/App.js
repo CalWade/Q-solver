@@ -30,8 +30,16 @@ export function EmitEvent(arg1, arg2) {
   return window['go']['app']['App']['EmitEvent'](arg1, arg2);
 }
 
+export function GetBroadcastAddresses() {
+  return window['go']['app']['App']['GetBroadcastAddresses']();
+}
+
 export function GetDomainCategories() {
   return window['go']['app']['App']['GetDomainCategories']();
+}
+
+export function GetHistoryFilePath() {
+  return window['go']['app']['App']['GetHistoryFilePath']();
 }
 
 export function GetInitStatus() {
@@ -58,6 +66,10 @@ export function IsInterruptThinkingEnabled() {
   return window['go']['app']['App']['IsInterruptThinkingEnabled']();
 }
 
+export function LoadHistorySnapshot() {
+  return window['go']['app']['App']['LoadHistorySnapshot']();
+}
+
 export function MoveWindow(arg1, arg2) {
   return window['go']['app']['App']['MoveWindow'](arg1, arg2);
 }
@@ -68,6 +80,10 @@ export function OpenMicrophoneSettings() {
 
 export function OpenScreenCaptureSettings() {
   return window['go']['app']['App']['OpenScreenCaptureSettings']();
+}
+
+export function PanicExit() {
+  return window['go']['app']['App']['PanicExit']();
 }
 
 export function ParseResume() {
@@ -94,8 +110,16 @@ export function RequestScreenCapturePermission() {
   return window['go']['app']['App']['RequestScreenCapturePermission']();
 }
 
+export function ResetShortcutsToDefault() {
+  return window['go']['app']['App']['ResetShortcutsToDefault']();
+}
+
 export function RestoreFocus() {
   return window['go']['app']['App']['RestoreFocus']();
+}
+
+export function SaveHistorySnapshot(arg1) {
+  return window['go']['app']['App']['SaveHistorySnapshot'](arg1);
 }
 
 export function SaveImageToFile(arg1) {

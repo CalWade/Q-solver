@@ -18,7 +18,11 @@ export function CopyCode():Promise<void>;
 
 export function EmitEvent(arg1:string,arg2:Array<any>):Promise<void>;
 
+export function GetBroadcastAddresses():Promise<Array<string>>;
+
 export function GetDomainCategories():Promise<Array<domain.Category>>;
+
+export function GetHistoryFilePath():Promise<string>;
 
 export function GetInitStatus():Promise<string>;
 
@@ -32,11 +36,15 @@ export function GetSettings():Promise<config.Config>;
 
 export function IsInterruptThinkingEnabled():Promise<boolean>;
 
+export function LoadHistorySnapshot():Promise<string>;
+
 export function MoveWindow(arg1:number,arg2:number):Promise<void>;
 
 export function OpenMicrophoneSettings():Promise<void>;
 
 export function OpenScreenCaptureSettings():Promise<void>;
+
+export function PanicExit():Promise<void>;
 
 export function ParseResume():Promise<string>;
 
@@ -50,7 +58,11 @@ export function RequestMicrophoneAccess():Promise<void>;
 
 export function RequestScreenCapturePermission():Promise<boolean>;
 
+export function ResetShortcutsToDefault():Promise<string>;
+
 export function RestoreFocus():Promise<void>;
+
+export function SaveHistorySnapshot(arg1:string):Promise<string>;
 
 export function SaveImageToFile(arg1:string):Promise<boolean>;
 
