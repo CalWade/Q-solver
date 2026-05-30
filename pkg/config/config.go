@@ -55,7 +55,7 @@ func NewDefaultConfig() Config {
 		Grayscale:          false,        // 保持彩色，某些场景颜色有意义
 		ResumeContent:      "",
 
-		Shortcuts: getDefaultShortcuts(),
+		Shortcuts: GetDefaultShortcuts(),
 
 		// 辅助模型
 		AssistantModel: "",
@@ -69,37 +69,50 @@ func NewDefaultConfig() Config {
 	}
 }
 
-// getDefaultShortcuts 根据平台返回默认快捷键配置
-func getDefaultShortcuts() map[string]shortcut.KeyBinding {
+// GetDefaultShortcuts 根据平台返回默认快捷键配置
+//
+// macOS 侧说明：实际快捷键由 shortcut_darwin.go 的 macDefaultShortcuts 硬编码决定，
+// 这里的 map 仅用于前端设置页展示 KeyName。修改 macOS 真实快捷键必须同步改 shortcut_darwin.go。
+//
+// 设计原则：
+//   - 主操作单手可按（Cmd/Alt + 数字 / Enter）
+//   - 不冲突 IDE / 浏览器主流快捷键
+//   - 所有 ComboID 升级时必须同步更新 manager.go 的 migrateShortcuts 老 ID 黑名单
+func GetDefaultShortcuts() map[string]shortcut.KeyBinding {
 	if runtime.GOOS == "darwin" {
-		// macOS 使用简化的快捷键（不依赖 Windows VK 码）
 		return map[string]shortcut.KeyBinding{
-			"solve":        {ComboID: "Cmd+1", KeyName: "⌘1"},
-			"send":         {ComboID: "Cmd+J", KeyName: "⌘J"},
-			"delete":       {ComboID: "Cmd+D", KeyName: "⌘D"},
+			"screenshot":   {ComboID: "Cmd+1", KeyName: "⌘1"},
+			"send":         {ComboID: "Cmd+Return", KeyName: "⌘↩"},
 			"toggle":       {ComboID: "Cmd+2", KeyName: "⌘2"},
 			"clickthrough": {ComboID: "Cmd+3", KeyName: "⌘3"},
+			"delete":       {ComboID: "Cmd+D", KeyName: "⌘D"},
 			"move_up":      {ComboID: "Cmd+Option+Up", KeyName: "⌘⌥↑"},
 			"move_down":    {ComboID: "Cmd+Option+Down", KeyName: "⌘⌥↓"},
 			"move_left":    {ComboID: "Cmd+Option+Left", KeyName: "⌘⌥←"},
 			"move_right":   {ComboID: "Cmd+Option+Right", KeyName: "⌘⌥→"},
 			"scroll_up":    {ComboID: "Cmd+Option+Shift+Up", KeyName: "⌘⌥⇧↑"},
 			"scroll_down":  {ComboID: "Cmd+Option+Shift+Down", KeyName: "⌘⌥⇧↓"},
+			"panic":        {ComboID: "Cmd+Shift+Escape", KeyName: "⌘⇧⎋"},
 		}
 	}
 	// Windows 默认快捷键
+	// VK 码参考：Alt=0x12(18), '1'..'5'=0x31..0x35(49..53), Enter=0x0D(13),
+	// 'D'=0x44(68), Esc=0x1B(27), Shift=0x10(16), Ctrl=0x11(17),
+	// 方向键 ↑↓←→ = 0x26..0x28 (38, 40, 37, 39), 164=Right Alt
+	// ComboID = VK 码升序 + 号连接（见 pkg/shortcut/shortcut.go GetComboID）
 	return map[string]shortcut.KeyBinding{
-		"screenshot":   {ComboID: "119", KeyName: "F8"},
-		"send":         {ComboID: "74+162", KeyName: "Ctrl+J"},
-		"delete":       {ComboID: "68+162", KeyName: "Ctrl+D"},
-		"toggle":       {ComboID: "120", KeyName: "F9"},
-		"clickthrough": {ComboID: "121", KeyName: "F10"},
+		"screenshot":   {ComboID: "18+49", KeyName: "Alt+1"},
+		"send":         {ComboID: "13+18", KeyName: "Alt+Enter"},
+		"toggle":       {ComboID: "18+50", KeyName: "Alt+2"},
+		"clickthrough": {ComboID: "18+51", KeyName: "Alt+3"},
+		"delete":       {ComboID: "18+68", KeyName: "Alt+D"},
 		"move_up":      {ComboID: "38+164", KeyName: "Alt+↑"},
 		"move_down":    {ComboID: "40+164", KeyName: "Alt+↓"},
 		"move_left":    {ComboID: "37+164", KeyName: "Alt+←"},
 		"move_right":   {ComboID: "39+164", KeyName: "Alt+→"},
 		"scroll_up":    {ComboID: "33+164", KeyName: "Alt+PgUp"},
 		"scroll_down":  {ComboID: "34+164", KeyName: "Alt+PgDn"},
+		"panic":        {ComboID: "16+17+18+27", KeyName: "Ctrl+Alt+Shift+Esc"},
 	}
 }
 

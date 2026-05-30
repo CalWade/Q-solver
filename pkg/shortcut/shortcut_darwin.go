@@ -21,17 +21,24 @@ type Manager struct {
 	OnError             func(msg string)
 }
 
-// macOS 默认快捷键映射 - 使用 Command + 数字键
+// macOS 默认快捷键映射
+//
+// 设计原则：
+//   1. 主操作单手可按（Cmd+数字 / Cmd+Return），避免日常面试操作累手。
+//   2. 不冲突常见 IDE/浏览器：Cmd+数字 在 IDE 切 tab 是 Cmd+Shift+数字 或 Ctrl+Tab，
+//      Cmd+Return 在大多数应用是"打开/确认"——这两个不算热门 IDE 快捷键。
+//   3. Panic Button 故意保持难按（Cmd+Shift+Esc），防止误触退出。
+//   4. 方向键保留原有 Cmd+Option+方向 的微移设计，已经形成肌肉记忆。
 var macDefaultShortcuts = map[string]struct {
 	mods []hotkey.Modifier
 	key  hotkey.Key
 }{
 	"screenshot":   {[]hotkey.Modifier{hotkey.ModCmd}, hotkey.Key1},
-	"send":         {[]hotkey.Modifier{hotkey.ModCmd}, hotkey.KeyJ},
-	"delete":       {[]hotkey.Modifier{hotkey.ModCmd}, hotkey.KeyD},
+	"send":         {[]hotkey.Modifier{hotkey.ModCmd}, hotkey.KeyReturn},
 	"toggle":       {[]hotkey.Modifier{hotkey.ModCmd}, hotkey.Key2},
 	"clickthrough": {[]hotkey.Modifier{hotkey.ModCmd}, hotkey.Key3},
-	// 方向键快捷键使用 Command + Option + 方向键
+	"delete":       {[]hotkey.Modifier{hotkey.ModCmd}, hotkey.KeyD},
+	// 方向键快捷键使用 Command + Option + 方向键（保留原有 UX，已成习惯）
 	"move_up":    {[]hotkey.Modifier{hotkey.ModCmd, hotkey.ModOption}, hotkey.KeyUp},
 	"move_down":  {[]hotkey.Modifier{hotkey.ModCmd, hotkey.ModOption}, hotkey.KeyDown},
 	"move_left":  {[]hotkey.Modifier{hotkey.ModCmd, hotkey.ModOption}, hotkey.KeyLeft},
