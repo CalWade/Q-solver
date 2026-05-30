@@ -1,10 +1,21 @@
 /**
  * Solution Store — 解题结果、流式输出、历史记录
+ *
+ * 历史记录持久化（生产级，启用条件：onMounted 时调用 hydrateHistory()）：
+ *   - 启动加载：onMounted → hydrateHistory() 从加密磁盘还原 history
+ *   - 自动保存：watch(history, deep) → 2s debounce → 加密落盘
+ *   - 上限保护：每次保存前裁到最近 MAX_HISTORY_ITEMS 条，避免文件无限增长
+ *   - 强制 flush：forceFlushHistory()（panic/退出前调用，跳过 debounce）
  */
 import { defineStore } from 'pinia'
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { renderMarkdownWithLatex } from '../utils/markdown-latex'
 import { api } from '../services/api'
+
+// 历史记录最多保留多少条。每条含 base64 截图，~50KB；50 条 ~2-3MB，加密后落盘可控。
+const MAX_HISTORY_ITEMS = 50
+// 写盘 debounce：流式 chunk 高频变更时合并写盘
+const SAVE_DEBOUNCE_MS = 2000
 
 export const useSolutionStore = defineStore('solution', () => {
   const history = ref([])
@@ -18,6 +29,90 @@ export const useSolutionStore = defineStore('solution', () => {
   const thinkingStatusText = ref('Thinking Process')
   const thinkingExpanded = ref(true)
   const isThinkingStalled = ref(false)
+
+  // ---- 历史记录持久化（核心） ----
+  let hydrated = false       // 启动加载完成才允许落盘，防止空数组覆盖磁盘
+  let saveTimer = null       // debounce timer
+
+  function serializeHistory() {
+    // 裁剪到上限——保留最近的（数组头部为最新）
+    const arr = history.value.length > MAX_HISTORY_ITEMS
+      ? history.value.slice(0, MAX_HISTORY_ITEMS)
+      : history.value
+    return JSON.stringify(arr)
+  }
+
+  async function flushNow() {
+    if (saveTimer) {
+      clearTimeout(saveTimer)
+      saveTimer = null
+    }
+    try {
+      await api.saveHistorySnapshot(serializeHistory())
+    } catch (e) {
+      console.warn('[history] 写盘失败:', e)
+    }
+  }
+
+  function scheduleSave() {
+    if (!hydrated) return
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => {
+      saveTimer = null
+      api.saveHistorySnapshot(serializeHistory()).catch(e => {
+        console.warn('[history] 写盘失败:', e)
+      })
+    }, SAVE_DEBOUNCE_MS)
+  }
+
+  // deep:true 让流式过程中的 round 内字段变化（aiResponse 累积、thinking 等）也触发写盘
+  watch(history, scheduleSave, { deep: true })
+
+  /**
+   * hydrateHistory 启动时由 App.vue onMounted 调用一次。
+   * 从磁盘还原 history 到内存，完成后开放 watch 写盘。
+   * 失败 / 空文件 → 静默从空开始；用户感知不到。
+   */
+  async function hydrateHistory() {
+    try {
+      const js = await api.loadHistorySnapshot()
+      if (js && typeof js === 'string') {
+        const arr = JSON.parse(js)
+        if (Array.isArray(arr)) {
+          history.value = arr
+          activeHistoryIndex.value = 0
+          console.info('[history] 已恢复', arr.length, '条历史')
+        }
+      }
+    } catch (e) {
+      console.warn('[history] hydrate 失败（保持空历史）:', e)
+    } finally {
+      hydrated = true
+    }
+  }
+
+  /**
+   * forceFlushHistory 立即同步落盘（跳过 debounce）。
+   * 用于：OnShutdown、Panic Button、window beforeunload。
+   */
+  async function forceFlushHistory() {
+    await flushNow()
+  }
+
+  /**
+   * clearAllHistory 清空内存+磁盘。
+   */
+  async function clearAllHistory() {
+    history.value = []
+    activeHistoryIndex.value = 0
+    if (saveTimer) {
+      clearTimeout(saveTimer)
+      saveTimer = null
+    }
+    if (hydrated) {
+      try { await api.saveHistorySnapshot('') } catch (_) {}
+    }
+  }
 
   // Stream state (not reactive — internal)
   let streamBuffer = ''
@@ -342,5 +437,7 @@ export const useSolutionStore = defineStore('solution', () => {
     selectHistory, handleStreamStart, handleStreamChunk, handleThinkingChunk,
     handleSolution, handleInlineError, clearInlineError,
     setStreamBuffer, setUserScreenshot, deleteHistory, exportImage,
+    // 历史持久化
+    hydrateHistory, forceFlushHistory, clearAllHistory,
   }
 })

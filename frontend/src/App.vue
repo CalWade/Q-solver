@@ -83,6 +83,23 @@ function continueSolve() {
 onMounted(() => {
   initCodeBlockInteractions()
 
+  // 历史记录持久化：onMounted 时从磁盘加载 → 之后的 history 变更自动 debounce 写盘。
+  // 失败/空文件视为新会话，不阻断 UI。
+  solution.hydrateHistory()
+
+  // Panic Button 触发时后端会 EventsEmit('panic-flush')，这里同步把 history 写到磁盘
+  // 后再让进程退出。给后端在 panic 里留了 250ms 等这个 flush 完成。
+  on('panic-flush', () => {
+    solution.forceFlushHistory()
+  })
+
+  // 关窗 / 刷新时也尽力 flush 一次（Wails 窗口关闭时浏览器 beforeunload 不一定触发，
+  // 但加上更稳。OnShutdown 走的是 Go 进程，前端没机会主动 flush，这条是 dev 模式
+  // hot reload 时的兜底）。
+  window.addEventListener('beforeunload', () => {
+    solution.forceFlushHistory()
+  })
+
   api.getInitStatus().then(s => { ui.initStatus = s })
   on('init-status', (s) => { ui.initStatus = s })
 

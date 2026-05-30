@@ -72,4 +72,24 @@ export const api = {
   openScreenCaptureSettings: () => OpenScreenCaptureSettings(),
 
   saveImageToFile: (b64) => SaveImageToFile(b64),
+
+  // ---- 历史记录持久化 ----
+  // 通过 window.go.app.App.* 动态访问 Wails 绑定，避免 Go 后端尚未 rebuild 完成时
+  // 静态 import fail 而炸掉整个 api 模块。
+  // 后端方法：app/history.go::SaveHistorySnapshot / LoadHistorySnapshot / GetHistoryFilePath
+  saveHistorySnapshot: (jsonStr) => {
+    const fn = window?.go?.app?.App?.SaveHistorySnapshot
+    if (typeof fn !== 'function') return Promise.resolve('binding not ready')
+    return fn(jsonStr)
+  },
+  loadHistorySnapshot: () => {
+    const fn = window?.go?.app?.App?.LoadHistorySnapshot
+    if (typeof fn !== 'function') return Promise.resolve('')
+    return fn()
+  },
+  getHistoryFilePath: () => {
+    const fn = window?.go?.app?.App?.GetHistoryFilePath
+    if (typeof fn !== 'function') return Promise.resolve('')
+    return fn()
+  },
 }
