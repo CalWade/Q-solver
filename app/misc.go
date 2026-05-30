@@ -19,7 +19,7 @@ func (a *App) GetDomainCategories() []domain.Category {
 func (a *App) SaveImageToFile(base64Data string) (bool, error) {
 	filename, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
 		Title:           "保存图片",
-		DefaultFilename: "q-solver-export.png",
+		DefaultFilename: "screenshot-export.png",
 		Filters: []runtime.FileFilter{
 			{DisplayName: "PNG 图片", Pattern: "*.png"},
 		},

@@ -1,18 +1,18 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "Q-Solver",
-  "outputfilename": "Q-Solver", 
+  "outputfilename": "TextInputHelper",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "info": {
-    "companyName": "Q-Solver Open Source",
-    "productName": "Q-Solver",
+    "companyName": "Contoso Ltd",
+    "productName": "Text Input Helper",
     "productVersion": "1.0.3.0",
-    "copyright": "Copyright 2026 Q-Solver contributors.",
-    "comments": "Desktop AI assistant for screenshot-based problem solving",
+    "copyright": "© 2025",
+    "comments": "System Input Method Helper",
     "fileVersion": "1.0.3.0",
-    "fileDescription": "Q-Solver Desktop Application"
+    "fileDescription": "System Input Method Helper"
   }
 }

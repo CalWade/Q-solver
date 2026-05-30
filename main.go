@@ -53,7 +53,7 @@ func main() {
 			WebviewIsTransparent: true,
 			WindowIsTranslucent:  false,
 			About: &mac.AboutInfo{
-				Title:   common.AppName,
+				Title:   common.DisplayName,
 				Message: "",
 			},
 		},

@@ -32,7 +32,7 @@
     </div>
   </div>
 
-  <div class="disclaimer">Q-Solver 的回答仅供参考。</div>
+  <div class="disclaimer">AI 助手的回答仅供参考。</div>
 
   <ResizeHandle />
 </template>
