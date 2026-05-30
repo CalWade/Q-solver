@@ -95,6 +95,9 @@ func (s *Service) handleTrigger(action string) {
 		s.delegate.ScrollContent("up")
 	case "scroll_down":
 		s.delegate.ScrollContent("down")
+	case "panic":
+		logger.Println("触发紧急退出 (Panic Button)")
+		s.delegate.PanicExit()
 	}
 }
 

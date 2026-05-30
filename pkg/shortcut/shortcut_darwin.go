@@ -39,6 +39,8 @@ var macDefaultShortcuts = map[string]struct {
 	// 滚动使用 Command + Option + Shift + 方向键
 	"scroll_up":   {[]hotkey.Modifier{hotkey.ModCmd, hotkey.ModOption, hotkey.ModShift}, hotkey.KeyUp},
 	"scroll_down": {[]hotkey.Modifier{hotkey.ModCmd, hotkey.ModOption, hotkey.ModShift}, hotkey.KeyDown},
+	// Panic Button：紧急隐藏 + 终止 LLM + 清缓存 + 退出进程（保持难按防误触）
+	"panic": {[]hotkey.Modifier{hotkey.ModCmd, hotkey.ModShift}, hotkey.KeyEscape},
 }
 
 func NewManager() *Manager {
