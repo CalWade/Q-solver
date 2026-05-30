@@ -199,7 +199,10 @@ export const useSettingsStore = defineStore('settings', () => {
       const models = await api.getModels(apiKey)
       if (models && models.length > 0) {
         ui.availableModels = models
-        if (!tempSettings.model || !models.includes(tempSettings.model)) {
+        // 只在用户尚未填 model 时自动填第一个；
+        // 已有值（来自下拉选择或手动输入）一律保留——某些自定义接口
+        // 不在 /models 列表里返回该模型名，但实际可用，需要支持手动输入。
+        if (!tempSettings.model) {
           tempSettings.model = models[0]
         }
         return true

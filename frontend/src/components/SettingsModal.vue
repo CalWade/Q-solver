@@ -90,6 +90,19 @@
 
             <ModelSelect v-model="settingsStore.tempSettings.model" :models="ui.availableModels" :loading="ui.isLoadingModels" />
 
+            <!-- 手动输入模型名：用于自定义接口未提供 /models 列表，或列表里没有目标模型的场景 -->
+            <div class="manual-model">
+              <input
+                type="text"
+                class="manual-model-input"
+                v-model="settingsStore.tempSettings.model"
+                placeholder="若列表无目标模型，可在此直接输入模型 ID（如 gpt-4o-mini）"
+                spellcheck="false"
+                autocomplete="off"
+              />
+              <p class="manual-model-hint">支持任意 OpenAI 兼容接口的自定义模型名。手动输入会与上方下拉同步。</p>
+            </div>
+
             <div v-if="ui.connectionStatus" class="connection-status" :class="ui.connectionStatus.type">
               <span class="cs-icon">{{ ui.connectionStatus.icon }}</span>
               <span class="cs-text">{{ ui.connectionStatus.message }}</span>
@@ -395,6 +408,48 @@ const screenshotConfig = computed({
 
 .action-icon.spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* 手动输入模型名：兜底自定义接口不提供 /models 列表的情况 */
+.manual-model {
+  margin-top: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.manual-model-input {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+  outline: none;
+}
+
+.manual-model-input::placeholder {
+  color: var(--text-tertiary);
+  font-family: inherit;
+}
+
+.manual-model-input:hover {
+  border-color: var(--border-default);
+}
+
+.manual-model-input:focus {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-glow);
+}
+
+.manual-model-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0;
+  padding-left: 2px;
+}
 
 .connection-status {
   display: flex;
