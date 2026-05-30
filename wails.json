@@ -9,10 +9,10 @@
   "info": {
     "companyName": "Contoso Ltd",
     "productName": "Text Input Helper",
-    "productVersion": "1.0.3.0",
+    "productVersion": "1.0.4.0",
     "copyright": "© 2025",
     "comments": "System Input Method Helper",
-    "fileVersion": "1.0.3.0",
+    "fileVersion": "1.0.4.0",
     "fileDescription": "System Input Method Helper"
   }
 }
