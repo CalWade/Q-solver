@@ -181,12 +181,17 @@ function showSettingsTooltip() {
   pointer-events: auto;
   box-shadow: var(--shadow-md), 0 0 0 1px var(--border-subtle);
   border: 1px solid var(--border-default);
-  transition: border-color var(--duration-base) ease;
   white-space: nowrap;
   width: 100%;
   max-width: 95vw;
+  /* 不做 hover 高亮：面试场景下任何"鼠标划过变化"都会在屏幕录制中被注意到 */
+
+  /* 强制独立 GPU 合成层，避免 hover 时从软件绘制层提升为合成层导致
+     backdrop-filter + 半透明背景在 alpha blending 路径不同下出现"鼠标划过后
+     视觉变不透明并保持"的 repaint 残留（WebKit/Blink 常见现象）。 */
+  transform: translateZ(0);
+  will-change: transform;
 }
-.top-bar:hover { border-color: var(--border-hover); }
 .bar-left {
   display: flex;
   align-items: center;

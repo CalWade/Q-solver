@@ -88,9 +88,9 @@
   --shadow-glow: 0 0 20px var(--accent-glow);
   --shadow-accent: 0 4px 16px rgba(99, 102, 241, 0.20);
 
-  /* Code block */
-  --code-bg: rgba(16, 16, 22, 0.90);
-  --code-header-bg: rgba(24, 24, 32, 0.95);
+  /* Code block — 跟随窗口透明度（不再硬编码 0.90 alpha，否则窗口透明时代码块仍是不透明黑块）*/
+  --code-bg: rgba(var(--app-bg-r), var(--app-bg-g), var(--app-bg-b), calc(var(--app-bg-a, 1) * 0.55));
+  --code-header-bg: rgba(var(--app-bg-r), var(--app-bg-g), var(--app-bg-b), calc(var(--app-bg-a, 1) * 0.65));
   --code-border: rgba(255, 255, 255, 0.06);
   --code-line-number: rgba(255, 255, 255, 0.20);
 
@@ -197,9 +197,9 @@
   --shadow-glow: 0 0 20px var(--accent-glow);
   --shadow-accent: 0 4px 16px rgba(79, 70, 229, 0.12);
 
-  /* Code block */
-  --code-bg: #f6f7fb;
-  --code-header-bg: #eef0f5;
+  /* Code block — 跟随窗口透明度，浅色主题用稍深一点的灰调，但仍服从全局透明度 */
+  --code-bg: rgba(var(--app-bg-r), var(--app-bg-g), var(--app-bg-b), calc(var(--app-bg-a, 1) * 0.55));
+  --code-header-bg: rgba(var(--app-bg-r), var(--app-bg-g), var(--app-bg-b), calc(var(--app-bg-a, 1) * 0.70));
   --code-border: rgba(0, 0, 0, 0.06);
   --code-line-number: rgba(0, 0, 0, 0.20);
 

@@ -22,7 +22,7 @@ const settingsStore = useSettingsStore()
 
 defineProps({
   shortcut: { type: String, default: 'F8' },
-  sendShortcut: { type: String, default: 'Ctrl+J' }
+  sendShortcut: { type: String, default: '⌘↩' }
 })
 
 const contentOpacity = computed(() => {
