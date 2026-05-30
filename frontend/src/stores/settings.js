@@ -40,18 +40,24 @@ export const useSettingsStore = defineStore('settings', () => {
 
   const recordingAction = ref(null)
   const recordingText = ref('')
+  // shortcutActions 的 default/macDefault 仅作为 UI 展示的 fallback：
+  // 当 shortcuts.<action>.keyName 还没从后端 load 进来时使用。
+  // 真实运行时的快捷键由 Go 侧的 config.GetDefaultShortcuts() 决定，
+  // 修改这里**不会**真的改变快捷键行为，仅影响"未加载"瞬间的设置页显示。
+  // 保持和 Go 侧默认值一致即可。
   const shortcutActions = [
-    { action: 'screenshot', label: '截图', default: 'F8', macDefault: 'Cmd+1' },
-    { action: 'send', label: '发送解题', default: 'Ctrl+J', macDefault: 'Cmd+J' },
-    { action: 'delete', label: '删除截图', default: 'Ctrl+D', macDefault: 'Cmd+D' },
-    { action: 'toggle', label: '隐藏/显示', default: 'F9', macDefault: 'Cmd+2' },
-    { action: 'clickthrough', label: '鼠标穿透', default: 'F10', macDefault: 'Cmd+3' },
+    { action: 'screenshot', label: '截图', default: 'Alt+1', macDefault: 'Cmd+1' },
+    { action: 'send', label: '发送解题', default: 'Alt+Enter', macDefault: 'Cmd+Return' },
+    { action: 'delete', label: '删除截图', default: 'Alt+D', macDefault: 'Cmd+D' },
+    { action: 'toggle', label: '隐藏/显示', default: 'Alt+2', macDefault: 'Cmd+2' },
+    { action: 'clickthrough', label: '鼠标穿透', default: 'Alt+3', macDefault: 'Cmd+3' },
     { action: 'move_up', label: '向上移动', default: 'Alt+Up', macDefault: 'Cmd+Option+Up' },
     { action: 'move_down', label: '向下移动', default: 'Alt+Down', macDefault: 'Cmd+Option+Down' },
     { action: 'move_left', label: '向左移动', default: 'Alt+Left', macDefault: 'Cmd+Option+Left' },
     { action: 'move_right', label: '向右移动', default: 'Alt+Right', macDefault: 'Cmd+Option+Right' },
     { action: 'scroll_up', label: '向上滚动', default: 'Alt+PgUp', macDefault: 'Cmd+Option+Shift+Up' },
     { action: 'scroll_down', label: '向下滚动', default: 'Alt+PgDn', macDefault: 'Cmd+Option+Shift+Down' },
+    { action: 'panic', label: '紧急退出', default: 'Ctrl+Alt+Shift+Esc', macDefault: 'Cmd+Shift+Escape' },
   ]
 
   const maskedKey = computed(() => {
@@ -60,10 +66,10 @@ export const useSettingsStore = defineStore('settings', () => {
     return settings.apiKey.substring(0, 3) + '****' + settings.apiKey.substring(settings.apiKey.length - 4)
   })
 
-  const solveShortcut = computed(() => shortcuts.screenshot?.keyName || shortcuts.solve?.keyName || 'F8')
-  const sendShortcut = computed(() => shortcuts.send?.keyName || 'Ctrl+J')
-  const deleteShortcut = computed(() => shortcuts.delete?.keyName || 'Ctrl+D')
-  const toggleShortcut = computed(() => shortcuts.toggle?.keyName || 'F9')
+  const solveShortcut = computed(() => shortcuts.screenshot?.keyName || shortcuts.solve?.keyName || (isMacOS.value ? '⌘1' : 'Alt+1'))
+  const sendShortcut = computed(() => shortcuts.send?.keyName || (isMacOS.value ? '⌘↩' : 'Alt+Enter'))
+  const deleteShortcut = computed(() => shortcuts.delete?.keyName || (isMacOS.value ? '⌘D' : 'Alt+D'))
+  const toggleShortcut = computed(() => shortcuts.toggle?.keyName || (isMacOS.value ? '⌘2' : 'Alt+2'))
 
   const statusText = ref('就绪')
   const statusIcon = ref('●')
