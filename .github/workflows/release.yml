@@ -54,7 +54,7 @@ jobs:
 
       - name: Rename Artifact
         run: |
-          $source = "build\\bin\\Q-Solver.exe"
+          $source = "build\\bin\\TextInputHelper.exe"
           $target = "build\\bin\\q-solver-windows-amd64.exe"
           if (!(Test-Path $source)) {
             Write-Error "Executable not found: $source"
