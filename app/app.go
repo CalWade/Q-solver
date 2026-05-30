@@ -1,7 +1,9 @@
 package app
 
 import (
+	"Q-Solver/pkg/broadcast"
 	"Q-Solver/pkg/config"
+	"Q-Solver/pkg/history"
 	"Q-Solver/pkg/llm"
 	"Q-Solver/pkg/logger"
 	"Q-Solver/pkg/resume"
@@ -27,6 +29,8 @@ type App struct {
 	shortcutService *shortcut.Service
 	screenService   *screen.Service
 	solver          *solution.Solver
+	broadcaster     *broadcast.Server
+	historyStore    *history.Store
 }
 
 func NewApp() *App {
@@ -37,6 +41,8 @@ func NewApp() *App {
 		stateManager:  state.NewStateManager(),
 		taskManager:   task.NewTaskCoordinator(),
 		screenService: screen.NewService(),
+		broadcaster:   broadcast.NewServer(0),                  // 使用默认端口 47821
+		historyStore:  history.NewStore(config.SharedCipher),   // 加密历史落盘
 	}
 }
 
@@ -68,6 +74,18 @@ func (a *App) Startup(ctx context.Context) {
 	a.shortcutService.Start()
 
 	a.configManager.Subscribe(a.onConfigChanged)
+
+	// 启动局域网答案广播 HTTP server（供 iPad 等副机实时查看答案）
+	if a.broadcaster != nil {
+		if err := a.broadcaster.Start(); err != nil {
+			logger.Printf("启动广播服务失败: %v", err)
+		} else {
+			for _, addr := range a.broadcaster.LocalAddresses() {
+				logger.Printf("答案广播地址: %s", addr)
+			}
+		}
+	}
+
 	a.stateManager.UpdateInitStatus(state.StatusReady)
 }
 
@@ -87,6 +105,9 @@ func (a *App) OnShutdown(ctx context.Context) {
 	if a.shortcutService != nil {
 		a.shortcutService.Stop()
 	}
+	if a.broadcaster != nil {
+		a.broadcaster.Stop()
+	}
 	if err := a.configManager.Save(); err != nil {
 		logger.Printf("保存配置失败: %v", err)
 	}
@@ -98,4 +119,13 @@ func (a *App) EmitEvent(eventName string, data ...interface{}) {
 
 func (a *App) Show() {
 	runtime.WindowShow(a.ctx)
+}
+
+// GetBroadcastAddresses 返回当前机器上所有可用于 iPad/Mac 副机访问的广播地址。
+// 前端可以在"设置 / 关于"里展示这些 URL，让用户在 iPad Safari 打开其中一个。
+func (a *App) GetBroadcastAddresses() []string {
+	if a.broadcaster == nil {
+		return []string{}
+	}
+	return a.broadcaster.LocalAddresses()
 }

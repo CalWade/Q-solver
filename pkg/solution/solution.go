@@ -1,6 +1,7 @@
 package solution
 
 import (
+	"Q-Solver/pkg/broadcast"
 	"Q-Solver/pkg/config"
 	"Q-Solver/pkg/domain"
 	"Q-Solver/pkg/llm"
@@ -15,6 +16,9 @@ const MaxConversationRounds = 10
 
 type Callbacks struct {
 	EmitEvent func(event string, data ...interface{})
+	// Broadcaster 可选：若非 nil，会把流式答案同步推送到局域网 HTTP server（用于 iPad 查看）。
+	// 不影响现有 EmitEvent 行为。
+	Broadcaster *broadcast.Server
 }
 
 type Request struct {
@@ -88,8 +92,15 @@ func (s *Solver) Solve(ctx context.Context, req Request, cb Callbacks) bool {
 	if cb.EmitEvent != nil {
 		cb.EmitEvent("solution-stream-start")
 	}
+	// 同步通知 broadcaster 开始新答案（iPad 端 SSE 会收到 start 并清空）
+	cb.Broadcaster.StartNewAnswer()
 
 	response, err := s.llmProvider.GenerateContentStream(ctx, messagesToSend, func(chunk llm.StreamChunk) {
+		// chunk 分发：优先保证原有 EmitEvent 行为不变；broadcaster 是附加副作用
+		if chunk.Type == llm.ChunkContent {
+			cb.Broadcaster.AppendChunk(chunk.Content)
+		}
+
 		if cb.EmitEvent == nil {
 			return
 		}

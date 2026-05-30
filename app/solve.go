@@ -146,7 +146,8 @@ func (a *App) solveInternal(ctx context.Context, screenshots []string) bool {
 	}
 
 	cb := solution.Callbacks{
-		EmitEvent: a.EmitEvent,
+		EmitEvent:   a.EmitEvent,
+		Broadcaster: a.broadcaster,
 	}
 
 	return a.solver.Solve(ctx, req, cb)
