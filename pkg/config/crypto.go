@@ -49,3 +49,16 @@ func decrypt(ciphertext []byte) ([]byte, error) {
 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
 	return gcm.Open(nil, nonce, ciphertext, nil)
 }
+
+// Cipher 暴露给同应用内其他持久化模块（如 history）共用密钥。
+// 实现 history.Encryptor 接口，但本包不引用 history 以避免循环依赖。
+type Cipher struct{}
+
+// SharedCipher 是共享 cipher 的单例，导入方直接 .Encrypt/.Decrypt 即可。
+var SharedCipher = Cipher{}
+
+// Encrypt 调用同包的私有 encrypt（AES-256-GCM）。
+func (Cipher) Encrypt(plaintext []byte) ([]byte, error) { return encrypt(plaintext) }
+
+// Decrypt 调用同包的私有 decrypt。
+func (Cipher) Decrypt(ciphertext []byte) ([]byte, error) { return decrypt(ciphertext) }
