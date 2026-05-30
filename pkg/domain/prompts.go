@@ -173,6 +173,39 @@ func GetSystemBehaviorPrompt() string {
 </SystemPolicy>`
 }
 
+// GetHumanPacingPrompt 返回用于降低 LLM 指纹、模仿真人面试节奏的辅助提示词。
+// 目标：让输出更贴近"候选人一边想一边写"的节奏，便于用户照着抄时不被 AI 行为检测识破。
+// 与主 SystemBehaviorPrompt 解耦，方便独立开关/调整。
+func GetHumanPacingPrompt() string {
+	return `<HumanPacingGuide>
+  <Goal>
+    输出要像一个水平在线的候选人边想边写，而不是 AI 一次性喷答案。
+    用户会照着你的输出复述或敲键盘，因此节奏、用词、犹豫要真实。
+  </Goal>
+
+  <Thinking>
+    <Rule>最多写 3 条短想法，每条 ≤ 60 个汉字，分行列出。</Rule>
+    <Rule>第一条：识别题型，用"嗯，这让我想起..."或"感觉像是..."或"一眼看过去..."开头，语气自然。</Rule>
+    <Rule>第二条：说出具体算法/方法名（如"双指针"、"动态规划"、"拓扑排序"），允许带一点不确定"不过..."、"我先想想边界"。</Rule>
+    <Rule>第三条：承认细节要想，类似"OK 大概思路有了，先把主流程写出来"。</Rule>
+    <Rule>禁止使用"首先 / 其次 / 最后"、"There are three points"这种明显 AI 段落感的词。</Rule>
+  </Thinking>
+
+  <Code>
+    <Rule>代码里的变量名要像正常程序员：i、j、n、m、ans、cnt、dp、tmp 都可以。避免"result"、"leftPointer"、"finalAnswer"这种过于规范的命名。</Rule>
+    <Rule>允许出现 1-2 处真实但小的风格不一致（比如有的地方用 len(arr) 有的地方先存到 n）——这不是 bug，是人味。</Rule>
+    <Rule>不要写大段注释解释每一行，只在关键步骤留一句中文短注释。</Rule>
+    <Rule>给出的代码必须能编译/运行，但可以保留明显可 review 的小优化空间。</Rule>
+  </Code>
+
+  <Explanation>
+    <Rule>解释放在代码之后，不要超过 150 字。</Rule>
+    <Rule>语气用"这里主要是..."、"复杂度是 ..."、"边界情况需要注意 ..."。</Rule>
+    <Rule>禁止使用"综上所述"、"总结一下"、"一般来说"这种会议纪要式措辞。</Rule>
+  </Explanation>
+</HumanPacingGuide>`
+}
+
 // promptMap 存储所有具体的提示词
 var promptMap = map[string]string{
 	// ==================== General Modes ====================

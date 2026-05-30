@@ -59,6 +59,11 @@ func (s *Solver) Solve(ctx context.Context, req Request, cb Callbacks) bool {
 	var systemPrompt bytes.Buffer
 	systemPrompt.WriteString(domain.GetSystemBehaviorPrompt())
 
+	// 追加反 AI 节奏提示词（模仿真人边想边写的语气/代码风格）
+	// 与主行为策略解耦，方便以后按配置独立开关
+	systemPrompt.WriteString("\n\n")
+	systemPrompt.WriteString(domain.GetHumanPacingPrompt())
+
 	if req.Config.DomainId != "" {
 		if prompt := domain.GetPrompt(req.Config.DomainId); prompt != "" {
 			systemPrompt.WriteString("\n\n<ScenePrompt>\n")
@@ -144,6 +149,8 @@ func (s *Solver) Solve(ctx context.Context, req Request, cb Callbacks) bool {
 	if cb.EmitEvent != nil {
 		cb.EmitEvent("solution", response.Content)
 	}
+	// 用最终整段覆盖，保证和 LLM 真实返回一致（某些 provider 流式和整体不完全相等）
+	cb.Broadcaster.FinalizeAnswer(response.Content)
 
 	s.chatHistory = []llm.Message{}
 	return true
