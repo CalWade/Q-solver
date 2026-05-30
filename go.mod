@@ -5,11 +5,12 @@ go 1.24.1
 require (
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
 	github.com/openai/openai-go v1.12.0
-	github.com/wailsapp/wails/v2 v2.11.0
+	github.com/wailsapp/wails/v2 v2.12.0
 	golang.design/x/hotkey v0.4.1
 )
 
 require (
+	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
 	github.com/gen2brain/shm v0.1.0 // indirect
 	github.com/jezek/xgb v1.1.1 // indirect
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e // indirect
