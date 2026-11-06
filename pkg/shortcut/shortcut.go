@@ -1,6 +1,7 @@
 package shortcut
 
 import (
+	"Q-Solver/internal/input/domain"
 	"fmt"
 	"sort"
 	"strings"
@@ -8,8 +9,9 @@ import (
 
 // KeyBinding 快捷键绑定
 type KeyBinding struct {
-	ComboID string `json:"vkCode"`
-	KeyName string `json:"keyName"`
+	ComboID string       `json:"vkCode"`
+	KeyName string       `json:"keyName"`
+	Keys    []domain.Key `json:"keys,omitempty"`
 }
 
 // GetComboID 根据按键 map 生成唯一的组合 ID

@@ -41,8 +41,8 @@ func NewApp() *App {
 		stateManager:  state.NewStateManager(),
 		taskManager:   task.NewTaskCoordinator(),
 		screenService: screen.NewService(),
-		broadcaster:   broadcast.NewServer(0),                  // 使用默认端口 47821
-		historyStore:  history.NewStore(config.SharedCipher),   // 加密历史落盘
+		broadcaster:   broadcast.NewServer(0),                // 使用默认端口 47821
+		historyStore:  history.NewStore(config.SharedCipher), // 加密历史落盘
 	}
 }
 
@@ -66,12 +66,10 @@ func (a *App) Startup(ctx context.Context) {
 	a.solver = solution.NewSolver(a.llmService.GetProvider())
 	a.resumeService = resume.NewService(a.configManager.Get(), a.configManager)
 
-	a.shortcutService = shortcut.NewService(a, a.configManager.Get().Shortcuts, func(callback func(map[string]shortcut.KeyBinding)) {
-		a.configManager.Subscribe(func(newConfig config.Config, oldConfig config.Config) {
-			callback(newConfig.Shortcuts)
-		})
-	})
-	a.shortcutService.Start()
+	a.shortcutService = shortcut.NewService(a)
+	if err := a.shortcutService.Start(cfg.Shortcuts, cfg.KeyboardProtection); err != nil {
+		logger.Printf("键盘服务未完全就绪: %v", err)
+	}
 
 	a.configManager.Subscribe(a.onConfigChanged)
 

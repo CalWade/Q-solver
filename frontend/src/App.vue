@@ -38,7 +38,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import TopBar from './components/TopBar.vue'
 import WelcomeView from './components/WelcomeView.vue'
 import SolveView from './components/SolveView.vue'
@@ -52,6 +52,7 @@ import { useSettingsStore } from './stores/settings'
 import { useSolutionStore } from './stores/solution'
 import { on } from './services/events'
 import { api } from './services/api'
+import { installInputEditing } from './services/input-editing'
 import { initCodeBlockInteractions } from './utils/markdown-latex'
 
 const ui = useUIStore()
@@ -59,6 +60,8 @@ const settingsStore = useSettingsStore()
 const solution = useSolutionStore()
 
 let pendingSolveCallback = null
+let disposeInputEditing = () => {}
+onUnmounted(() => disposeInputEditing())
 
 function toastIcon(type) {
   if (type === 'error') return 'x-circle'
@@ -81,6 +84,9 @@ function continueSolve() {
 }
 
 onMounted(() => {
+  disposeInputEditing = installInputEditing({ api, recording: () => Boolean(settingsStore.recordingAction), onError: error => ui.showToast(error.message, 'warning') })
+  api.getKeyboardProtectionStatus().then(status => { settingsStore.keyboardStatus = status }).catch(() => {})
+  on('keyboard-protection-status', status => { settingsStore.keyboardStatus = status })
   initCodeBlockInteractions()
 
   // 历史记录持久化：onMounted 时从磁盘加载 → 之后的 history 变更自动 debounce 写盘。
@@ -262,14 +268,13 @@ onMounted(() => {
   }
 
   on('require-api-key', () => {
-    if (!ui.showSettings) settingsStore.openSettings()
     ui.activeTab = 'api'
-    ui.showToast('请先配置 API Key', 'warning')
+    ui.showToast('请打开设置配置 API Key', 'warning')
   })
 
   on('open-settings', (tab) => {
-    if (!ui.showSettings) settingsStore.openSettings()
     if (tab) ui.activeTab = tab
+    ui.showToast('请打开设置完成配置后重试', 'warning')
   })
 
   on('toast', (msg) => {

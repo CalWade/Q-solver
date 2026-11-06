@@ -33,6 +33,12 @@ import {
 import { Quit } from '../../wailsjs/runtime/runtime'
 
 export const api = {
+
+  getKeyboardProtectionStatus: () => window.go.app.App.GetKeyboardProtectionStatus(),
+  setInputEditing: (editing) => window.go.app.App.SetInputEditing(editing),
+  requestKeyboardPermission: () => window.go.app.App.RequestKeyboardPermission(),
+  retryKeyboardService: () => window.go.app.App.RetryKeyboardService(),
+  getProtectionShortcutPreset: () => window.go.app.App.GetProtectionShortcutPreset(),
   getSettings: () => GetSettings(),
   syncSettings: (json) => UpdateSettings(json),
   updateSettings: (json) => UpdateSettings(json),

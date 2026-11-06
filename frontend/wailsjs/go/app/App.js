@@ -46,8 +46,16 @@ export function GetInitStatus() {
   return window['go']['app']['App']['GetInitStatus']();
 }
 
+export function GetKeyboardProtectionStatus() {
+  return window['go']['app']['App']['GetKeyboardProtectionStatus']();
+}
+
 export function GetModels(arg1) {
   return window['go']['app']['App']['GetModels'](arg1);
+}
+
+export function GetProtectionShortcutPreset() {
+  return window['go']['app']['App']['GetProtectionShortcutPreset']();
 }
 
 export function GetResumePDF() {
@@ -102,6 +110,10 @@ export function RemoveScreenshot(arg1) {
   return window['go']['app']['App']['RemoveScreenshot'](arg1);
 }
 
+export function RequestKeyboardPermission() {
+  return window['go']['app']['App']['RequestKeyboardPermission']();
+}
+
 export function RequestMicrophoneAccess() {
   return window['go']['app']['App']['RequestMicrophoneAccess']();
 }
@@ -118,6 +130,10 @@ export function RestoreFocus() {
   return window['go']['app']['App']['RestoreFocus']();
 }
 
+export function RetryKeyboardService() {
+  return window['go']['app']['App']['RetryKeyboardService']();
+}
+
 export function SaveHistorySnapshot(arg1) {
   return window['go']['app']['App']['SaveHistorySnapshot'](arg1);
 }
@@ -132,6 +148,10 @@ export function ScrollContent(arg1) {
 
 export function SelectResume() {
   return window['go']['app']['App']['SelectResume']();
+}
+
+export function SetInputEditing(arg1) {
+  return window['go']['app']['App']['SetInputEditing'](arg1);
 }
 
 export function SetWindowAlwaysOnTop(arg1) {
