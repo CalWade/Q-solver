@@ -1,16 +1,17 @@
 package state
 
 import (
+	"Q-Solver/internal/window/application"
+	"Q-Solver/internal/window/domain"
+	"Q-Solver/internal/window/infrastructure/native"
 	"Q-Solver/pkg/logger"
 	"Q-Solver/pkg/platform"
 	"context"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"sync"
 	"time"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// InitStatus 初始化状态
 type InitStatus string
 
 const (
@@ -20,223 +21,166 @@ const (
 	StatusError        InitStatus = "error"
 )
 
-// WindowState 窗口状态
-type WindowState struct {
-	Visible      bool
-	ClickThrough bool
-	StealthMode  bool
-}
+type WindowState = domain.Status
 
-// StateManager 管理应用全局状态
+// StateManager is a Wails adapter. Window rules and capture leases live in the
+// application service, which knows nothing about Wails or native handles.
 type StateManager struct {
-	ctx context.Context
-
-	// 窗口状态
-	windowState WindowState
-	windowMu    sync.RWMutex
-	hwnd        platform.WindowHandle
-
-	// 初始化状态
+	ctx          context.Context
+	windows      *application.Service
+	driver       *native.Driver
+	windowMu     sync.RWMutex
+	hwnd         platform.WindowHandle
 	initStatus   InitStatus
 	initStatusMu sync.RWMutex
-
-	// 事件发送器
-	emitEvent func(string, ...interface{})
+	emitEvent    func(string, ...interface{})
 }
 
-// NewStateManager 创建状态管理器
 func NewStateManager() *StateManager {
-	return &StateManager{
-		windowState: WindowState{
-			Visible:      true,
-			ClickThrough: false,
-			StealthMode:  true,
-		},
-		initStatus: StatusInitializing,
-	}
+	driver := native.New()
+	return &StateManager{driver: driver, windows: application.New(driver), initStatus: StatusInitializing}
 }
-
-// Startup 启动状态管理器
-func (sm *StateManager) Startup(ctx context.Context, emitEvent func(string, ...interface{})) {
-	sm.ctx = ctx
-	sm.emitEvent = emitEvent
-
-	// 异步初始化窗口句柄
-	sm.initWindowHandle()
-}
-
-// initWindowHandle 初始化窗口句柄
-func (sm *StateManager) initWindowHandle() {
-	const maxRetries = 10
-	const retryInterval = 500 * time.Millisecond
-
-	for i := 0; i < maxRetries; i++ {
+func (sm *StateManager) Startup(ctx context.Context, emit func(string, ...interface{})) {
+	sm.ctx, sm.emitEvent = ctx, emit
+	for attempt := 0; attempt < 10; attempt++ {
 		hwnd, err := platform.GetWindowHandle()
 		if err == nil && hwnd != 0 {
-			sm.windowMu.Lock()
-			sm.hwnd = hwnd
-			sm.windowMu.Unlock()
-
-			if err := platform.ApplyGhostMode(hwnd); err != nil {
-				logger.Printf("应用幽灵模式失败: %v\n", err)
-			} else {
-				logger.Println("幽灵模式已激活 (无边框/隐身/防抢焦/隐藏任务栏)")
+			if err = platform.ApplyGhostMode(hwnd); err != nil {
+				logger.Printf("窗口初始化失败: %v", err)
+				sm.UpdateInitStatus(StatusError)
+				return
+			}
+			if err = sm.RegisterWindow("main", hwnd); err != nil {
+				logger.Printf("窗口策略未完全生效: %v", err)
 			}
 			return
 		}
-		time.Sleep(retryInterval)
+		time.Sleep(100 * time.Millisecond)
 	}
-	logger.Println("无法找到主窗口以启用隐身模式")
+	logger.Println("窗口句柄未就绪")
+	sm.UpdateInitStatus(StatusError)
 }
-
-// GetHwnd 获取窗口句柄
+func (sm *StateManager) RegisterWindow(id domain.ID, handle platform.WindowHandle) error {
+	if err := sm.driver.Bind(id, handle); err != nil {
+		return err
+	}
+	if id == "main" {
+		sm.windowMu.Lock()
+		sm.hwnd = handle
+		sm.windowMu.Unlock()
+	}
+	err := sm.windows.Register(id)
+	sm.publish(err)
+	return err
+}
+func (sm *StateManager) UnregisterWindow(id domain.ID) {
+	sm.windows.Unregister(id)
+	sm.driver.Unbind(id)
+	if id == "main" {
+		sm.windowMu.Lock()
+		sm.hwnd = 0
+		sm.windowMu.Unlock()
+	}
+	sm.publish(nil)
+}
 func (sm *StateManager) GetHwnd() platform.WindowHandle {
 	sm.windowMu.RLock()
 	defer sm.windowMu.RUnlock()
 	return sm.hwnd
 }
-
-// GetInitStatus 获取初始化状态
+func (sm *StateManager) GetWindowState() WindowState { return sm.windows.Status() }
 func (sm *StateManager) GetInitStatus() InitStatus {
 	sm.initStatusMu.RLock()
 	defer sm.initStatusMu.RUnlock()
 	return sm.initStatus
 }
-
-// GetInitStatusString 获取初始化状态字符串
-func (sm *StateManager) GetInitStatusString() string {
-	return string(sm.GetInitStatus())
-}
-
-// UpdateInitStatus 更新初始化状态
+func (sm *StateManager) GetInitStatusString() string { return string(sm.GetInitStatus()) }
 func (sm *StateManager) UpdateInitStatus(status InitStatus) {
 	sm.initStatusMu.Lock()
 	sm.initStatus = status
 	sm.initStatusMu.Unlock()
-
 	if sm.emitEvent != nil {
 		sm.emitEvent("init-status", string(status))
 	}
 }
-
-// IsReady 检查是否已就绪
-func (sm *StateManager) IsReady() bool {
-	return sm.GetInitStatus() == StatusReady
-}
-
-// GetWindowState 获取窗口状态
-func (sm *StateManager) GetWindowState() WindowState {
-	sm.windowMu.RLock()
-	defer sm.windowMu.RUnlock()
-	return sm.windowState
-}
-
-// IsVisible 检查是否可见
+func (sm *StateManager) IsReady() bool { return sm.GetInitStatus() == StatusReady }
 func (sm *StateManager) IsVisible() bool {
-	sm.windowMu.RLock()
-	defer sm.windowMu.RUnlock()
-	return sm.windowState.Visible
+	for _, w := range sm.windows.Status().Windows {
+		if w.ID == "main" {
+			return w.Applied.Visible
+		}
+	}
+	return false
 }
-
-// IsClickThrough 检查是否鼠标穿透
 func (sm *StateManager) IsClickThrough() bool {
-	sm.windowMu.RLock()
-	defer sm.windowMu.RUnlock()
-	return sm.windowState.ClickThrough
-}
-
-// ToggleVisibility 切换可见性（隐身模式）
-func (sm *StateManager) ToggleVisibility() bool {
-	sm.windowMu.Lock()
-	defer sm.windowMu.Unlock()
-
-	if sm.hwnd == 0 {
-		logger.Println("无法切换可见性：窗口句柄未初始化")
-		return sm.windowState.Visible
-	}
-
-	if sm.windowState.Visible {
-		// 禁用隐身模式，可被录屏检测
-		err := platform.SetDisplayAffinity(sm.hwnd, false)
-		if err != nil {
-			logger.Printf("设置显示亲和性失败: %v\n", err)
-		} else {
-			logger.Println("隐身模式已禁用，现在可被录屏程序检测到")
-		}
-	} else {
-		// 启用隐身模式
-		err := platform.SetDisplayAffinity(sm.hwnd, true)
-		if err != nil {
-			logger.Printf("设置显示亲和性失败: %v\n", err)
-		} else {
-			logger.Println("隐身模式已启用，录屏程序现在无法检测")
+	for _, w := range sm.windows.Status().Windows {
+		if w.ID == "main" {
+			return w.Applied.ClickThrough
 		}
 	}
-
-	sm.windowState.Visible = !sm.windowState.Visible
-
-	if sm.emitEvent != nil {
-		sm.emitEvent("toggle-visibility", sm.windowState.Visible)
-	}
-
-	return sm.windowState.Visible
+	return false
 }
-
-// ToggleClickThrough 切换鼠标穿透
-func (sm *StateManager) ToggleClickThrough() bool {
-	sm.windowMu.Lock()
-	defer sm.windowMu.Unlock()
-
-	if sm.hwnd == 0 {
-		logger.Println("无法切换鼠标穿透：窗口句柄未初始化")
-		return sm.windowState.ClickThrough
+func (sm *StateManager) publish(err error) {
+	if sm.emitEvent == nil {
+		return
 	}
-
-	newState := !sm.windowState.ClickThrough
-	err := platform.SetClickThrough(sm.hwnd, newState)
+	sm.emitEvent("window-state", sm.windows.Status())
 	if err != nil {
-		logger.Printf("切换鼠标穿透失败: %v\n", err)
-		return sm.windowState.ClickThrough
-	}
-
-	sm.windowState.ClickThrough = newState
-
-	if newState {
-		logger.Println("鼠标穿透已启用")
-	} else {
-		logger.Println("鼠标穿透已禁用")
-	}
-
-	if sm.emitEvent != nil {
-		sm.emitEvent("click-through-state", newState)
-	}
-
-	return newState
-}
-
-// RestoreFocus 恢复焦点
-func (sm *StateManager) RestoreFocus() {
-	sm.windowMu.RLock()
-	hwnd := sm.hwnd
-	sm.windowMu.RUnlock()
-
-	if hwnd != 0 {
-		platform.RestoreFocus(hwnd)
+		sm.emitEvent("toast", "窗口策略未生效: "+err.Error())
 	}
 }
-
-// RemoveFocus 移除焦点
-func (sm *StateManager) RemoveFocus() {
-	sm.windowMu.RLock()
-	hwnd := sm.hwnd
-	sm.windowMu.RUnlock()
-
-	if hwnd != 0 {
-		platform.RemoveFocus(hwnd)
-	}
+func (sm *StateManager) change(update func(*domain.Policy)) error {
+	err := sm.windows.Update(update)
+	sm.publish(err)
+	return err
 }
 
-// MoveWindow 移动窗口
+// ToggleVisibility is retained for existing bindings; its historic action was
+// capture protection. Local visibility now has an independent explicit method.
+func (sm *StateManager) ToggleVisibility() bool {
+	err := sm.change(func(p *domain.Policy) { p.CaptureProtection = !p.CaptureProtection })
+	status := sm.windows.Status()
+	if err == nil && sm.emitEvent != nil {
+		sm.emitEvent("capture-protection-state", status.Desired.CaptureProtection)
+	}
+	return status.Desired.CaptureProtection
+}
+func (sm *StateManager) SetCaptureProtection(value bool) error {
+	return sm.change(func(p *domain.Policy) { p.CaptureProtection = value })
+}
+func (sm *StateManager) SetVisible(value bool) error {
+	return sm.change(func(p *domain.Policy) { p.Visible = value })
+}
+func (sm *StateManager) ToggleClickThrough() bool {
+	err := sm.change(func(p *domain.Policy) { p.ClickThrough = !p.ClickThrough })
+	value := sm.IsClickThrough()
+	if err == nil && sm.emitEvent != nil {
+		sm.emitEvent("click-through-state", value)
+	}
+	return value
+}
+func (sm *StateManager) RestoreFocus() error {
+	return sm.change(func(p *domain.Policy) { p.InputMode = domain.Editing })
+}
+func (sm *StateManager) RemoveFocus() error {
+	return sm.change(func(p *domain.Policy) { p.InputMode = domain.Passive })
+}
+func (sm *StateManager) SetAlwaysOnTop(value bool) error {
+	return sm.change(func(p *domain.Policy) { p.AlwaysOnTop = value })
+}
+func (sm *StateManager) RetryWindowPolicy() error {
+	err := sm.windows.Retry()
+	sm.publish(err)
+	return err
+}
+func (sm *StateManager) BeginCapture() (func() error, error) {
+	release, err := sm.windows.BeginCapture()
+	sm.publish(err)
+	if err != nil {
+		return nil, err
+	}
+	return func() error { err := release(); sm.publish(err); return err }, nil
+}
 func (sm *StateManager) MoveWindow(dx, dy int) {
 	if sm.ctx == nil {
 		return

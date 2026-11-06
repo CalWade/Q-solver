@@ -53,6 +53,7 @@ import { useSolutionStore } from './stores/solution'
 import { on } from './services/events'
 import { api } from './services/api'
 import { installInputEditing } from './services/input-editing'
+import { capturePolicyApplied } from './utils/window-model'
 import { initCodeBlockInteractions } from './utils/markdown-latex'
 
 const ui = useUIStore()
@@ -84,6 +85,14 @@ function continueSolve() {
 }
 
 onMounted(() => {
+  const applyWindowStatus = status => {
+    ui.windowStatus = status
+    ui.isStealthMode = capturePolicyApplied(status)
+    const main = status.windows?.find(window => window.id === 'main')
+    if (main) ui.isClickThrough = main.applied.clickThrough
+  }
+  api.getWindowStatus().then(applyWindowStatus).catch(error => ui.showToast(error.message, 'warning'))
+  on('window-state', applyWindowStatus)
   disposeInputEditing = installInputEditing({ api, recording: () => Boolean(settingsStore.recordingAction), onError: error => ui.showToast(error.message, 'warning') })
   api.getKeyboardProtectionStatus().then(status => { settingsStore.keyboardStatus = status }).catch(() => {})
   on('keyboard-protection-status', status => { settingsStore.keyboardStatus = status })
@@ -185,10 +194,9 @@ onMounted(() => {
     }
   }
 
-  on('toggle-visibility', (isVisibleToCapture) => {
+  on('capture-protection-state', (enabled) => {
     ui.flash('toggle')
-    ui.isStealthMode = isVisibleToCapture
-    ui.showToast(isVisibleToCapture ? '隐身模式已开启' : '隐身模式已关闭', isVisibleToCapture ? 'info' : 'success')
+    ui.showToast(enabled ? '已请求系统捕获保护' : '捕获保护已关闭', 'info')
   })
 
   on('solution', (data) => {
@@ -205,8 +213,6 @@ onMounted(() => {
 
   on('click-through-state', (enabled) => {
     ui.isClickThrough = enabled
-    const el = document.getElementById('main-interface')
-    if (el) el.style.pointerEvents = enabled ? 'none' : 'auto'
   })
 
   on('scroll-content', (direction) => {

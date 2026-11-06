@@ -40,6 +40,8 @@ export function GetScreenshotPreview(arg1:number,arg2:number,arg3:boolean,arg4:b
 
 export function GetSettings():Promise<config.Config>;
 
+export function GetWindowStatus():Promise<domain.Status>;
+
 export function IsInterruptThinkingEnabled():Promise<boolean>;
 
 export function LoadHistorySnapshot():Promise<string>;
@@ -54,7 +56,7 @@ export function PanicExit():Promise<void>;
 
 export function ParseResume():Promise<string>;
 
-export function RemoveFocus():Promise<void>;
+export function RemoveFocus():Promise<string>;
 
 export function RemoveLastScreenshot():Promise<void>;
 
@@ -68,9 +70,11 @@ export function RequestScreenCapturePermission():Promise<boolean>;
 
 export function ResetShortcutsToDefault():Promise<string>;
 
-export function RestoreFocus():Promise<void>;
+export function RestoreFocus():Promise<string>;
 
 export function RetryKeyboardService():Promise<string>;
+
+export function RetryWindowPolicy():Promise<string>;
 
 export function SaveHistorySnapshot(arg1:string):Promise<string>;
 
@@ -80,9 +84,13 @@ export function ScrollContent(arg1:string):Promise<void>;
 
 export function SelectResume():Promise<string>;
 
+export function SetCaptureProtection(arg1:boolean):Promise<string>;
+
 export function SetInputEditing(arg1:boolean):Promise<string>;
 
-export function SetWindowAlwaysOnTop(arg1:boolean):Promise<void>;
+export function SetLocalVisible(arg1:boolean):Promise<string>;
+
+export function SetWindowAlwaysOnTop(arg1:boolean):Promise<string>;
 
 export function Show():Promise<void>;
 

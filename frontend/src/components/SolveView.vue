@@ -1,5 +1,5 @@
 <template>
-  <div id="main-interface" class="main-interface" :class="{ visible: ui.mainVisible }">
+  <div id="main-interface" class="main-interface" :class="{ visible: ui.mainVisible }" :style="{ pointerEvents: ui.isClickThrough ? 'none' : 'auto' }">
     <!-- Left Panel - History -->
     <div class="left-panel" id="history-list" :class="{ collapsed: isHistoryCollapsed }">
       <div class="panel-header">

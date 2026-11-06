@@ -6,6 +6,9 @@ import (
 	"Q-Solver/internal/input/application"
 	"Q-Solver/internal/input/domain"
 	"Q-Solver/internal/input/infrastructure/simulated"
+	windowapp "Q-Solver/internal/window/application"
+	windowdomain "Q-Solver/internal/window/domain"
+	windowfake "Q-Solver/internal/window/infrastructure/simulated"
 	"Q-Solver/pkg/config"
 	categories "Q-Solver/pkg/domain"
 	"Q-Solver/pkg/shortcut"
@@ -26,15 +29,17 @@ type Event struct {
 	Args []any  `json:"args"`
 }
 type Server struct {
-	requests  sync.Mutex
-	mu        sync.Mutex
-	config    *config.ConfigManager
-	input     *shortcut.Service
-	driver    *simulated.Driver
-	commands  []string
-	events    []Event
-	directory string
-	history   string
+	requests     sync.Mutex
+	mu           sync.Mutex
+	config       *config.ConfigManager
+	input        *shortcut.Service
+	driver       *simulated.Driver
+	windows      *windowapp.Service
+	windowDriver *windowfake.Driver
+	commands     []string
+	events       []Event
+	directory    string
+	history      string
 }
 
 func New(directory string) (*Server, error) {
@@ -67,6 +72,11 @@ func (s *Server) reset() error {
 	s.history = ""
 	s.mu.Unlock()
 	s.driver = &simulated.Driver{}
+	s.windowDriver = &windowfake.Driver{}
+	s.windows = windowapp.New(s.windowDriver)
+	if err := s.windows.Register("main"); err != nil {
+		return err
+	}
 	s.input = shortcut.NewServiceWithDriver(s, s.driver)
 	cfg := s.config.Get()
 	return s.input.Start(cfg.Shortcuts, cfg.KeyboardProtection)
@@ -162,7 +172,36 @@ func (s *Server) call(method string, args []json.RawMessage) (any, error) {
 	case "CheckScreenCapturePermission":
 		return true, nil
 	case "GetScreenshotPreview":
-		return map[string]string{"base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=", "size": "synthetic fixture"}, nil
+		return s.preview(args)
+	case "GetWindowStatus":
+		return s.windows.Status(), nil
+	case "SetCaptureProtection":
+		value, err := argument[bool](args, 0)
+		if err != nil {
+			return nil, err
+		}
+		err = s.windows.Update(func(p *windowdomain.Policy) { p.CaptureProtection = value })
+		s.EmitEvent("window-state", s.windows.Status())
+		return errorText(err), nil
+	case "SetLocalVisible":
+		value, err := argument[bool](args, 0)
+		if err != nil {
+			return nil, err
+		}
+		err = s.windows.Update(func(p *windowdomain.Policy) { p.Visible = value })
+		s.EmitEvent("window-state", s.windows.Status())
+		return errorText(err), nil
+	case "RetryWindowPolicy":
+		err := s.windows.Retry()
+		s.EmitEvent("window-state", s.windows.Status())
+		return errorText(err), nil
+	case "HarnessFailWindow":
+		operation, err := argument[string](args, 0)
+		if err != nil {
+			return nil, err
+		}
+		s.windowDriver.Fail(operation)
+		return nil, nil
 	case "GetKeyboardProtectionStatus":
 		return s.input.Status(), nil
 	case "GetProtectionShortcutPreset":
@@ -187,8 +226,21 @@ func (s *Server) call(method string, args []json.RawMessage) (any, error) {
 	case "RetryKeyboardService":
 		cfg := s.config.Get()
 		return errorText(s.input.Restart(cfg.Shortcuts, cfg.KeyboardProtection)), nil
-	case "RestoreFocus", "RemoveFocus", "SetWindowAlwaysOnTop":
-		return nil, nil
+	case "RestoreFocus", "RemoveFocus":
+		mode := windowdomain.Passive
+		if method == "RestoreFocus" {
+			mode = windowdomain.Editing
+		}
+		err := s.windows.Update(func(p *windowdomain.Policy) { p.InputMode = mode })
+		s.EmitEvent("window-state", s.windows.Status())
+		return errorText(err), nil
+	case "SetWindowAlwaysOnTop":
+		value, err := argument[bool](args, 0)
+		if err != nil {
+			return nil, err
+		}
+		err = s.windows.Update(func(p *windowdomain.Policy) { p.AlwaysOnTop = value })
+		return errorText(err), nil
 	case "LoadHistorySnapshot":
 		return s.history, nil
 	case "SaveHistorySnapshot":

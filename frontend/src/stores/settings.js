@@ -55,7 +55,7 @@ export const useSettingsStore = defineStore('settings', () => {
     { action: 'screenshot', label: '截图', default: 'Alt+1', macDefault: 'Cmd+1' },
     { action: 'send', label: '发送解题', default: 'Alt+Enter', macDefault: 'Cmd+Return' },
     { action: 'delete', label: '删除截图', default: 'Alt+D', macDefault: 'Cmd+D' },
-    { action: 'toggle', label: '隐藏/显示', default: 'Alt+2', macDefault: 'Cmd+2' },
+    { action: 'toggle', label: '捕获保护', default: 'Alt+2', macDefault: 'Cmd+2' },
     { action: 'clickthrough', label: '鼠标穿透', default: 'Alt+3', macDefault: 'Cmd+3' },
     { action: 'move_up', label: '向上移动', default: 'Alt+Up', macDefault: 'Cmd+Option+Up' },
     { action: 'move_down', label: '向下移动', default: 'Alt+Down', macDefault: 'Cmd+Option+Down' },

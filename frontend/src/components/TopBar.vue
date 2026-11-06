@@ -63,8 +63,8 @@
             <span class="sp-value model">{{ settingsStore.settings.model || '未设置' }}</span>
           </div>
           <div class="sp-row">
-            <span class="sp-label">隐身模式</span>
-            <span class="sp-value" :class="ui.isStealthMode ? 'ok' : 'err'">{{ ui.isStealthMode ? '已开启' : '已关闭' }}</span>
+            <span class="sp-label">捕获保护设置</span>
+            <span class="sp-value" :class="ui.isStealthMode ? 'ok' : 'warn'">{{ ui.isStealthMode ? '系统已接受' : '未确认' }}</span>
           </div>
         </div>
       </div>

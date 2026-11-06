@@ -22,6 +22,7 @@
       <div class="modal-body">
         <div v-show="ui.activeTab === 'general'" class="tab-pane">
           <KeyboardProtectionSettings />
+          <WindowSettings />
           <div class="form-group">
             <label>快捷键配置（点击录制，保存后生效）</label>
             <div class="shortcut-list">
@@ -159,6 +160,7 @@ import ModelSelect from './ModelSelect.vue'
 import DomainSelector from './DomainSelector.vue'
 import ScreenshotSettings from './ScreenshotSettings.vue'
 import KeyboardProtectionSettings from './KeyboardProtectionSettings.vue'
+import WindowSettings from './WindowSettings.vue'
 import Icon from './Icon.vue'
 
 const ui = useUIStore()

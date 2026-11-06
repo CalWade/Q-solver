@@ -70,6 +70,10 @@ export function GetSettings() {
   return window['go']['app']['App']['GetSettings']();
 }
 
+export function GetWindowStatus() {
+  return window['go']['app']['App']['GetWindowStatus']();
+}
+
 export function IsInterruptThinkingEnabled() {
   return window['go']['app']['App']['IsInterruptThinkingEnabled']();
 }
@@ -134,6 +138,10 @@ export function RetryKeyboardService() {
   return window['go']['app']['App']['RetryKeyboardService']();
 }
 
+export function RetryWindowPolicy() {
+  return window['go']['app']['App']['RetryWindowPolicy']();
+}
+
 export function SaveHistorySnapshot(arg1) {
   return window['go']['app']['App']['SaveHistorySnapshot'](arg1);
 }
@@ -150,8 +158,16 @@ export function SelectResume() {
   return window['go']['app']['App']['SelectResume']();
 }
 
+export function SetCaptureProtection(arg1) {
+  return window['go']['app']['App']['SetCaptureProtection'](arg1);
+}
+
 export function SetInputEditing(arg1) {
   return window['go']['app']['App']['SetInputEditing'](arg1);
+}
+
+export function SetLocalVisible(arg1) {
+  return window['go']['app']['App']['SetLocalVisible'](arg1);
 }
 
 export function SetWindowAlwaysOnTop(arg1) {

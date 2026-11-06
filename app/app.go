@@ -61,6 +61,7 @@ func (a *App) Startup(ctx context.Context) {
 
 	a.stateManager.Startup(ctx, a.EmitEvent)
 	a.screenService.Startup(ctx)
+	a.screenService.SetCaptureGuard(a.stateManager)
 
 	a.llmService = llm.NewService(a.configManager.Get(), a.configManager)
 	a.solver = solution.NewSolver(a.llmService.GetProvider())
@@ -84,7 +85,15 @@ func (a *App) Startup(ctx context.Context) {
 		}
 	}
 
-	a.stateManager.UpdateInitStatus(state.StatusReady)
+	ready := len(a.stateManager.GetWindowState().Windows) > 0
+	for _, window := range a.stateManager.GetWindowState().Windows {
+		ready = ready && window.Ready
+	}
+	if ready {
+		a.stateManager.UpdateInitStatus(state.StatusReady)
+	} else {
+		a.stateManager.UpdateInitStatus(state.StatusError)
+	}
 }
 
 func (a *App) onConfigChanged(newConfig config.Config, oldConfig config.Config) {
@@ -100,12 +109,14 @@ func (a *App) onConfigChanged(newConfig config.Config, oldConfig config.Config) 
 }
 
 func (a *App) OnShutdown(ctx context.Context) {
+	a.taskManager.CancelCurrentTask()
 	if a.shortcutService != nil {
 		a.shortcutService.Stop()
 	}
 	if a.broadcaster != nil {
 		a.broadcaster.Stop()
 	}
+	a.stateManager.UnregisterWindow("main")
 	if err := a.configManager.Save(); err != nil {
 		logger.Printf("保存配置失败: %v", err)
 	}
@@ -116,7 +127,9 @@ func (a *App) EmitEvent(eventName string, data ...interface{}) {
 }
 
 func (a *App) Show() {
-	runtime.WindowShow(a.ctx)
+	if err := a.stateManager.SetVisible(true); err != nil {
+		logger.Printf("显示窗口失败: %v", err)
+	}
 }
 
 // GetBroadcastAddresses 返回当前机器上所有可用于 iPad/Mac 副机访问的广播地址。

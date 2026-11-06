@@ -34,6 +34,10 @@ import { Quit } from '../../wailsjs/runtime/runtime'
 
 export const api = {
 
+  getWindowStatus: () => window.go.app.App.GetWindowStatus(),
+  setCaptureProtection: enabled => window.go.app.App.SetCaptureProtection(enabled),
+  retryWindowPolicy: () => window.go.app.App.RetryWindowPolicy(),
+
   getKeyboardProtectionStatus: () => window.go.app.App.GetKeyboardProtectionStatus(),
   setInputEditing: (editing) => window.go.app.App.SetInputEditing(editing),
   requestKeyboardPermission: () => window.go.app.App.RequestKeyboardPermission(),
@@ -60,11 +64,11 @@ export const api = {
   clearResume: () => ClearResume(),
   parseResume: () => ParseResume(),
 
-  restoreFocus: () => RestoreFocus(),
-  removeFocus: () => RemoveFocus(),
+  restoreFocus: async () => { const error = await RestoreFocus(); if (error) throw new Error(error) },
+  removeFocus: async () => { const error = await RemoveFocus(); if (error) throw new Error(error) },
   moveWindow: (x, y) => MoveWindow(x, y),
   scrollContent: (dir) => ScrollContent(dir),
-  setAlwaysOnTop: (v) => SetWindowAlwaysOnTop(v),
+  setAlwaysOnTop: async (v) => { const error = await SetWindowAlwaysOnTop(v); if (error) throw new Error(error) },
   toggleVisibility: () => ToggleVisibility(),
   toggleClickThrough: () => ToggleClickThrough(),
   quit: () => Quit(),
