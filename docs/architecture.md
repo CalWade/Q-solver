@@ -49,3 +49,23 @@ app 负责装配，不在领域层引用 Wails、操作系统或全局配置
 截图使用引用计数租约。新增窗口也继承正在执行的截图状态；最后一个租约释放时应用最新策略。截图、恢复、编码分别处理错误，不能因抓图完成就漏掉恢复失败。`internal/capture` 的来源、图像处理和窗口保护均由端口注入，页面预览与业务截图共用该管道。
 
 Windows 区分排除捕获与旧系统的内容留空；macOS 确认 sharingType 属性设置完成，但不把它描述为所有捕获路径验证成功。Wails 2 在 macOS 启动时仍主动激活应用，其限制必须通过宿主原型解决，窗口状态模块不伪造该能力。
+
+## 请求与同步显示模块
+
+`internal/solve/domain` 定义配置快照、图片身份、对话轮次和事件；应用服务依赖 SettingsSource、Capturer、Generator、Observer 四个端口。一个请求从开始截图起就分配编号；每个进程还有独立会话标识，避免重启后与持久化历史混淆。原来的全局截图缓冲和另一套 TaskCoordinator 已删除。
+
+服务先判断忙碌状态再执行截图，最多保存三张待发送图片。发送时复制全部设置、图片和上下文。取消可以在截图或生成期间发生，旧请求的回调和停止按钮不能影响新请求。只有完整成功的轮次进入最多十轮的模型上下文；清空上下文的版本号阻止在途任务恢复旧历史。
+
+模型适配器只生成结果，不持有 UI、广播对象或可变全局配置。它使用每次请求自己的 Provider；OpenAI 适配器也复制配置。最终内容替换流式草稿，避免二者不同造成主界面与副机不一致。正文和简历不再作为解题调试日志输出。
+
+Observer 接收有序、不可变的事件。当前 UI 适配器投递 Wails 事件，SSE 适配器以单锁更新状态和入队；不得在 Publish 中阻塞等待客户端或重新调用请求服务。慢速接收端的积压会被完整快照替换，连接注册与首次快照原子完成。前端同时检查会话、请求和序号，刷新后从后端快照恢复。
+
+传输 DTO 使用 `app.WindowStatus` 和 `app.WorkflowStatus` 两个不同名称，防止 Wails 2 将两个领域包中的同名 `Status` 合并成错误的 TypeScript 类型。
+
+## 原生面板原型
+
+`cmd/panelprobe` 使用独立 AppKit NSPanel + WKWebView，复用生产窗口应用服务和 macOS 原生适配器。面板在创建时设置 nonactivating 标记，并明确拒绝成为 key/main window；显示操作不请求应用激活。测试结果与局限见 `docs/compatibility/README.md`。
+
+Wails 3.1.0 已有 NSPanel 选项，但其 `WebviewPanel.canBecomeKeyWindow` 返回 YES。这能保持另一个应用的激活状态，却不能直接提供输出面板拒绝键盘焦点的规则。仅升级框架还不够。生产接入需要分别处理被动输出面板和显式编辑窗口，并验证中文输入法、关闭编辑后的焦点恢复及窗口重建。
+
+版本固定的参考：[Wails 3.1.0 面板实现](https://github.com/wailsapp/wails/blob/v3.1.0/v3/pkg/application/webview_panel_darwin.m)、[Wails 面板选项](https://wails.io/features/windows/options/)、[Apple becomesKeyOnlyIfNeeded](https://developer.apple.com/documentation/appkit/nspanel/becomeskeyonlyifneeded)。

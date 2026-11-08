@@ -120,6 +120,8 @@ export const useSolutionStore = defineStore('solution', () => {
   let thinkingStartTime = 0
   let stallTimer = null
   let pendingUserScreenshot = ''
+  let activeRequestKey = ''
+  const getLiveRound = () => history.value.flatMap(item => item.rounds || []).find(round => round.requestKey === activeRequestKey)
 
   // 流式渲染：节流 + 全量渲染
   let renderRafId = null
@@ -204,7 +206,8 @@ export const useSolutionStore = defineStore('solution', () => {
     if (history.value[idx]) activeHistoryIndex.value = idx
   }
 
-  function handleStreamStart(keepContext) {
+  function handleStreamStart(keepContext, requestKey, images = []) {
+    activeRequestKey = requestKey
     streamBuffer = ''
     thinkingBuffer = ''
     thinkingStartTime = 0
@@ -217,6 +220,12 @@ export const useSolutionStore = defineStore('solution', () => {
     streamingHtml.value = ''
     if (stallTimer) clearTimeout(stallTimer)
 
+    const restoredItem = history.value.find(item => item.rounds?.some(round => round.requestKey === requestKey))
+    if (requestKey && restoredItem) {
+      activeHistoryIndex.value = history.value.indexOf(restoredItem)
+      pendingUserScreenshot = ''
+      return
+    }
     if (keepContext && history.value.length > 0 && !shouldOverwriteHistory.value) {
       const currentItem = history.value[0]
       const lastRound = getCurrentRound(currentItem)
@@ -241,6 +250,8 @@ export const useSolutionStore = defineStore('solution', () => {
       activeHistoryIndex.value = 0
       pendingUserScreenshot = ''
     }
+    const round = getCurrentRound(history.value[0])
+    if (round) { round.requestKey = requestKey; round.userScreenshots = images.map(image => image.dataURL) }
   }
 
   function handleStreamChunk(token) {
@@ -254,7 +265,7 @@ export const useSolutionStore = defineStore('solution', () => {
     streamBuffer += token
 
     if (history.value.length > 0) {
-      const round = getCurrentRound(history.value[0])
+      const round = getLiveRound()
       if (round) round.aiResponse = streamBuffer
     }
 
@@ -294,7 +305,7 @@ export const useSolutionStore = defineStore('solution', () => {
     }
 
     if (history.value.length > 0) {
-      const round = getCurrentRound(history.value[0])
+      const round = getLiveRound()
       if (round) {
         round.thinking = thinkingBuffer
         round.thinkingStatus = thinkingStatusText.value
@@ -303,7 +314,7 @@ export const useSolutionStore = defineStore('solution', () => {
     scrollContentToBottom()
   }
 
-  function handleSolution(data) {
+  function handleSolution(data, thinking) {
     isLoading.value = false
     isAppending.value = false
     isThinking.value = false
@@ -313,14 +324,28 @@ export const useSolutionStore = defineStore('solution', () => {
     renderDirty = false
     streamingHtml.value = ''
     if (history.value.length > 0) {
-      const round = getCurrentRound(history.value[0])
-      if (round && !round.aiResponse) round.aiResponse = data
+      const round = getLiveRound()
+      if (round) { round.aiResponse = data; if (thinking !== undefined) round.thinking = thinking }
+    }
+  }
+
+  function handleStopped(reason = '') {
+    isLoading.value = false
+    isAppending.value = false
+    isThinking.value = false
+    if (stallTimer) { clearTimeout(stallTimer); stallTimer = null }
+    if (renderRafId) { cancelAnimationFrame(renderRafId); renderRafId = null }
+    renderDirty = false
+    streamingHtml.value = ''
+    if (reason) {
+      const round = getLiveRound()
+      if (round) round.stopReason = reason
     }
   }
 
   function handleInlineError(errorInfo) {
     if (history.value.length > 0) {
-      const round = getCurrentRound(history.value[0])
+      const round = getLiveRound()
       if (round) {
         round.error = {
           title: errorInfo.title || '请求出错',
@@ -338,7 +363,7 @@ export const useSolutionStore = defineStore('solution', () => {
 
   function clearInlineError() {
     if (history.value.length > 0) {
-      const round = getCurrentRound(history.value[0])
+      const round = getLiveRound()
       if (round) round.error = null
     }
   }
@@ -435,7 +460,7 @@ export const useSolutionStore = defineStore('solution', () => {
     streamingHtml, errorState, currentRounds,
     renderMarkdown, getSummary, getRoundsCount, getFullContent, getThinkingPreview,
     selectHistory, handleStreamStart, handleStreamChunk, handleThinkingChunk,
-    handleSolution, handleInlineError, clearInlineError,
+    handleSolution, handleStopped, handleInlineError, clearInlineError,
     setStreamBuffer, setUserScreenshot, deleteHistory, exportImage,
     // 历史持久化
     hydrateHistory, forceFlushHistory, clearAllHistory,

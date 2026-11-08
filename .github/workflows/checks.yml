@@ -30,6 +30,8 @@ jobs:
         working-directory: frontend
       - run: npm test
         working-directory: frontend
+      - run: node --test scripts/toolchain.test.mjs scripts/compatibility.test.mjs
+      - run: node scripts/compatibility.mjs
       - run: npm run build
         working-directory: frontend
       - run: go test -race -coverprofile=coverage.out ./...

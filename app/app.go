@@ -1,6 +1,7 @@
 package app
 
 import (
+	solveapp "Q-Solver/internal/solve/application"
 	"Q-Solver/pkg/broadcast"
 	"Q-Solver/pkg/config"
 	"Q-Solver/pkg/history"
@@ -11,7 +12,6 @@ import (
 	"Q-Solver/pkg/shortcut"
 	"Q-Solver/pkg/solution"
 	"Q-Solver/pkg/state"
-	"Q-Solver/pkg/task"
 	"context"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -22,13 +22,12 @@ type App struct {
 
 	configManager *config.ConfigManager
 	stateManager  *state.StateManager
-	taskManager   *task.TaskCoordinator
+	workflow      *solveapp.Service
 
 	llmService      *llm.Service
 	resumeService   *resume.Service
 	shortcutService *shortcut.Service
 	screenService   *screen.Service
-	solver          *solution.Solver
 	broadcaster     *broadcast.Server
 	historyStore    *history.Store
 }
@@ -39,7 +38,6 @@ func NewApp() *App {
 	return &App{
 		configManager: configManager,
 		stateManager:  state.NewStateManager(),
-		taskManager:   task.NewTaskCoordinator(),
 		screenService: screen.NewService(),
 		broadcaster:   broadcast.NewServer(0),                // 使用默认端口 47821
 		historyStore:  history.NewStore(config.SharedCipher), // 加密历史落盘
@@ -64,7 +62,7 @@ func (a *App) Startup(ctx context.Context) {
 	a.screenService.SetCaptureGuard(a.stateManager)
 
 	a.llmService = llm.NewService(a.configManager.Get(), a.configManager)
-	a.solver = solution.NewSolver(a.llmService.GetProvider())
+	a.workflow = solveapp.New(ctx, solution.SettingsSource{Manager: a.configManager}, workflowCapture{a.screenService}, solution.NewOpenAIGenerator(), workflowObserver{a})
 	a.resumeService = resume.NewService(a.configManager.Get(), a.configManager)
 
 	a.shortcutService = shortcut.NewService(a)
@@ -97,21 +95,19 @@ func (a *App) Startup(ctx context.Context) {
 }
 
 func (a *App) onConfigChanged(newConfig config.Config, oldConfig config.Config) {
-	if a.solver != nil {
-		a.solver.SetProvider(a.llmService.GetProvider())
-	}
-
-	if !newConfig.KeepContext && a.solver != nil {
-		a.solver.ClearHistory()
+	if !newConfig.KeepContext && a.workflow != nil {
+		a.workflow.ClearContext()
 	}
 
 	logger.Println("配置已更新并应用")
 }
 
 func (a *App) OnShutdown(ctx context.Context) {
-	a.taskManager.CancelCurrentTask()
 	if a.shortcutService != nil {
 		a.shortcutService.Stop()
+	}
+	if a.workflow != nil {
+		a.workflow.Close()
 	}
 	if a.broadcaster != nil {
 		a.broadcaster.Stop()

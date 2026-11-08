@@ -2,7 +2,9 @@ package app
 
 import "Q-Solver/internal/window/domain"
 
-func (a *App) GetWindowStatus() domain.Status { return a.stateManager.GetWindowState() }
+type WindowStatus domain.Status
+
+func (a *App) GetWindowStatus() WindowStatus { return WindowStatus(a.stateManager.GetWindowState()) }
 func (a *App) SetCaptureProtection(enabled bool) string {
 	return windowError(a.stateManager.SetCaptureProtection(enabled))
 }

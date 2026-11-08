@@ -1,3 +1,90 @@
+export namespace app {
+
+	export class WindowStatus {
+	    desired: domain.Policy;
+	    windows: domain.Window[];
+	    captures: number;
+
+	    static createFrom(source: any = {}) {
+	        return new WindowStatus(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.desired = this.convertValues(source["desired"], domain.Policy);
+	        this.windows = this.convertValues(source["windows"], domain.Window);
+	        this.captures = source["captures"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class WorkflowStatus {
+	    sessionId: string;
+	    requestId: number;
+	    sequence: number;
+	    phase: string;
+	    images: domain.Image[];
+	    requestImages: domain.Image[];
+	    content: string;
+	    thinking: string;
+	    error: string;
+	    keepContext: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new WorkflowStatus(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.requestId = source["requestId"];
+	        this.sequence = source["sequence"];
+	        this.phase = source["phase"];
+	        this.images = this.convertValues(source["images"], domain.Image);
+	        this.requestImages = this.convertValues(source["requestImages"], domain.Image);
+	        this.content = source["content"];
+	        this.thinking = source["thinking"];
+	        this.error = source["error"];
+	        this.keepContext = source["keepContext"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace application {
 
 	export class Capabilities {
@@ -203,6 +290,20 @@ export namespace domain {
 		}
 	}
 
+	export class Image {
+	    id: number;
+	    dataURL: string;
+
+	    static createFrom(source: any = {}) {
+	        return new Image(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.dataURL = source["dataURL"];
+	    }
+	}
 	export class Policy {
 	    visible: boolean;
 	    captureProtection: boolean;
@@ -259,40 +360,6 @@ export namespace domain {
 	        this.captureSuppressed = source["captureSuppressed"];
 	        this.ready = source["ready"];
 	        this.error = source["error"];
-	    }
-
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class Status {
-	    desired: Policy;
-	    windows: Window[];
-	    captures: number;
-
-	    static createFrom(source: any = {}) {
-	        return new Status(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.desired = this.convertValues(source["desired"], Policy);
-	        this.windows = this.convertValues(source["windows"], Window);
-	        this.captures = source["captures"];
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

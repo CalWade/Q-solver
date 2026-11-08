@@ -7,8 +7,8 @@
       </div>
       <div class="dock-divider" />
       <div class="dock-thumbs">
-        <div v-for="(img, i) in screenshots" :key="i" class="thumb-card">
-          <img :src="img" class="thumb-img" />
+        <div v-for="img in screenshots" :key="img.id" class="thumb-card">
+          <img :src="img.dataURL" class="thumb-img" />
         </div>
       </div>
       <div class="dock-divider" />
@@ -27,35 +27,17 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed } from 'vue'
 import Icon from './Icon.vue'
-import { api } from '../services/api'
 import { useSettingsStore } from '../stores/settings'
-import { on } from '../services/events'
+import { useWorkflowStore } from '../stores/workflow'
 
 const settingsStore = useSettingsStore()
 const sendShortcut = settingsStore.sendShortcut
 const deleteShortcut = settingsStore.deleteShortcut
 
-const screenshots = ref([])
-
-// 监听后端事件
-on('screenshot-taken', (base64, count) => {
-  screenshots.value.push(base64)
-})
-
-on('screenshot-removed', (index, count) => {
-  screenshots.value.splice(index, 1)
-})
-
-on('screenshots-cleared', () => {
-  screenshots.value = []
-})
-
-// 发送后清空
-on('start-solving', () => {
-  screenshots.value = []
-})
+const workflow = useWorkflowStore()
+const screenshots = computed(() => workflow.state.images)
 
 defineExpose({ screenshots })
 </script>

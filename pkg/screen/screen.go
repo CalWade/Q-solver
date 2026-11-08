@@ -33,13 +33,23 @@ func (s *Service) SetCaptureGuard(guard application.Guard) {
 }
 func (s *Service) CapturePreview(quality int, sharpen float64, grayscale, noCompression bool, mode string) (PreviewResult, error) {
 	s.mu.RLock()
-	ctx, guard := s.ctx, s.guard
+	ctx := s.ctx
 	s.mu.RUnlock()
 	if ctx == nil {
 		return PreviewResult{}, fmt.Errorf("capture context is not initialized")
 	}
-	pipeline := application.New(nativeSource{ctx}, infrastructure.Processor{}, guard)
-	result, err := pipeline.Capture(ctx, domain.Options{Quality: quality, Sharpen: sharpen, Grayscale: grayscale, NoCompression: noCompression, Mode: mode})
+	return s.CapturePreviewContext(ctx, domain.Options{Quality: quality, Sharpen: sharpen, Grayscale: grayscale, NoCompression: noCompression, Mode: mode})
+}
+
+func (s *Service) CapturePreviewContext(ctx context.Context, options domain.Options) (PreviewResult, error) {
+	s.mu.RLock()
+	windowContext, guard := s.ctx, s.guard
+	s.mu.RUnlock()
+	if windowContext == nil {
+		return PreviewResult{}, fmt.Errorf("capture context is not initialized")
+	}
+	pipeline := application.New(nativeSource{windowContext}, infrastructure.Processor{}, guard)
+	result, err := pipeline.Capture(ctx, options)
 	if err != nil {
 		return PreviewResult{}, err
 	}

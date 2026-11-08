@@ -203,6 +203,8 @@ const indexHTML = `<!doctype html>
   // ---- 状态与内容 ----
   var currentText = '';
   var finalized = false;
+  var lastSequence = -1;
+  var activeRequest = 0;
   var pendingRender = null;
   var RENDER_THROTTLE_MS = 60; // 60ms throttle 防止高频 chunk 时 CPU 飙高
 
@@ -252,7 +254,7 @@ const indexHTML = `<!doctype html>
   function connect() {
     try { if (es) es.close(); } catch(e) {}
     setStatus('', '连接中...');
-    es = new EventSource('/stream');
+    es = new EventSource('stream');
     es.onopen = function() {
       setStatus('live', '已连接');
       reconnectDelay = 1000;
@@ -261,30 +263,29 @@ const indexHTML = `<!doctype html>
       if (!ev.data) return;
       var msg;
       try { msg = JSON.parse(ev.data); } catch(e) { return; }
-      switch (msg.kind) {
-        case 'start':
+      if (msg.kind === 'snapshot') {
+        lastSequence = msg.seq;
+        activeRequest = msg.requestId;
+        currentText = msg.content || '';
+      } else {
+        if (msg.seq <= lastSequence) return;
+        if (msg.kind === 'started') {
+          if (msg.requestId <= activeRequest) return;
+          activeRequest = msg.requestId;
           currentText = '';
-          finalized = false;
-          scheduleRender();
-          break;
-        case 'chunk':
-          currentText += (msg.content || '');
-          scheduleRender();
-          break;
-        case 'final':
-          currentText = (msg.content || '');
-          finalized = true;
-          scheduleRender();
-          break;
-        case 'clear':
-          currentText = '';
-          finalized = false;
-          flushRender();
-          break;
-        case 'ping':
-          // keep-alive，忽略
-          break;
+        } else {
+          if (msg.requestId !== activeRequest || finalized) return;
+          if (msg.kind === 'chunk') currentText += msg.content || '';
+          if (msg.kind === 'completed') currentText = msg.content || '';
+        }
+        lastSequence = msg.seq;
       }
+      finalized = ['completed', 'failed', 'cancelled'].indexOf(msg.phase) >= 0;
+      document.body.dataset.requestId = String(activeRequest);
+      document.body.dataset.phase = msg.phase;
+      var labels = {idle: '已连接', capturing: '正在截图', generating: '正在生成', completed: '已完成', cancelled: '已停止', failed: '请求出错'};
+      setStatus(msg.phase === 'failed' ? 'err' : 'live', labels[msg.phase] || '已连接');
+      scheduleRender();
     };
     es.onerror = function() {
       setStatus('err', '断线，重连中...');

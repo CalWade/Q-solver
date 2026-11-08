@@ -1,4 +1,6 @@
-import { spawn } from 'node:child_process'
+import { spawn, execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { ensureWails } from './toolchain.mjs'
 import { mkdir, access, readFile, writeFile, chmod } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -6,7 +8,8 @@ import { fileURLToPath } from 'node:url'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const frontend = resolve(root, 'frontend')
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-const wails = ['run', 'github.com/wailsapp/wails/v2/cmd/wails@v2.12.0']
+const capture = async (bin, args) => (await promisify(execFile)(bin, args, { cwd: root, timeout: 60000 })).stdout
+const wails = () => ensureWails({ directory: resolve(root, '.local/bin'), capture, run })
 const command = process.argv[2] || 'dev'
 const children = new Set()
 let stopping = false
@@ -76,11 +79,20 @@ try {
       await run(npm, ['test'], frontend)
       await run(npm, ['run', 'build'], frontend)
       await run('go', ['test', '-race', './...'])
-      await run(process.execPath, ['--test', 'scripts/run.test.mjs'])
+      await run(process.execPath, ['--test', 'scripts/toolchain.test.mjs', 'scripts/compatibility.test.mjs', 'scripts/run.test.mjs'])
+      await run(process.execPath, ['scripts/compatibility.mjs'])
       await run(npm, ['run', 'test:e2e'], frontend)
       break
-    case 'bindings': await run('go', [...wails, 'generate', 'module']); await normalizeBindings(); break
-    case 'build': await run('go', [...wails, 'build', '-tags', 'prod']); await normalizeBindings(); break
-    default: throw new Error('Usage: node scripts/run.mjs [dev|doctor|check|bindings|build]')
+    case 'bindings': await run(await wails(), ['generate', 'module']); await normalizeBindings(); break
+    case 'build': await run(await wails(), ['build', '-tags', 'prod']); await normalizeBindings(); break
+    case 'panel-probe': {
+      if (process.platform !== 'darwin') throw new Error('The native panel probe currently requires macOS.')
+      await mkdir(resolve(root, '.local/bin'), { recursive: true })
+      const executable = resolve(root, '.local/bin/panelprobe')
+      await run('go', ['build', '-o', executable, './cmd/panelprobe'])
+      await run(executable, [])
+      break
+    }
+    default: throw new Error('Usage: node scripts/run.mjs [dev|doctor|check|bindings|build|panel-probe]')
   }
 } catch (error) { console.error(error.message); await shutdown(); process.exitCode = 1 }

@@ -5,6 +5,9 @@ import {application} from '../models';
 import {shortcut} from '../models';
 import {screen} from '../models';
 import {config} from '../models';
+import {app} from '../models';
+
+export function CancelRequest(arg1:number):Promise<boolean>;
 
 export function CancelRunningTask():Promise<boolean>;
 
@@ -40,7 +43,9 @@ export function GetScreenshotPreview(arg1:number,arg2:number,arg3:boolean,arg4:b
 
 export function GetSettings():Promise<config.Config>;
 
-export function GetWindowStatus():Promise<domain.Status>;
+export function GetWindowStatus():Promise<app.WindowStatus>;
+
+export function GetWorkflowStatus():Promise<app.WorkflowStatus>;
 
 export function IsInterruptThinkingEnabled():Promise<boolean>;
 

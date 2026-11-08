@@ -56,6 +56,8 @@ export const api = {
   removeScreenshot: (index) => RemoveScreenshot(index),
   clearScreenshots: () => ClearScreenshots(),
   cancelTask: () => CancelRunningTask(),
+  cancelRequest: id => window.go.app.App.CancelRequest(id),
+  getWorkflowStatus: () => window.go.app.App.GetWorkflowStatus(),
 
   startRecordingKey: (action) => StartRecordingKey(action),
   stopRecordingKey: () => StopRecordingKey(),

@@ -6,9 +6,11 @@ import (
 	"Q-Solver/internal/input/application"
 	"Q-Solver/internal/input/domain"
 	"Q-Solver/internal/input/infrastructure/simulated"
+	solveapp "Q-Solver/internal/solve/application"
 	windowapp "Q-Solver/internal/window/application"
 	windowdomain "Q-Solver/internal/window/domain"
 	windowfake "Q-Solver/internal/window/infrastructure/simulated"
+	"Q-Solver/pkg/broadcast"
 	"Q-Solver/pkg/config"
 	categories "Q-Solver/pkg/domain"
 	"Q-Solver/pkg/shortcut"
@@ -40,6 +42,9 @@ type Server struct {
 	events       []Event
 	directory    string
 	history      string
+	workflow     *solveapp.Service
+	model        *fixtureModel
+	broadcast    *broadcast.Server
 }
 
 func New(directory string) (*Server, error) {
@@ -52,12 +57,27 @@ func New(directory string) (*Server, error) {
 	}
 	return s, nil
 }
-func (s *Server) Close() error { return s.input.Stop() }
+func (s *Server) Close() error {
+	err := s.input.Stop()
+	if s.workflow != nil {
+		s.workflow.Close()
+	}
+	if s.broadcast != nil {
+		s.broadcast.Stop()
+	}
+	return err
+}
 func (s *Server) reset() error {
 	if s.input != nil {
 		if err := s.input.Stop(); err != nil {
 			return err
 		}
+	}
+	if s.workflow != nil {
+		s.workflow.Close()
+	}
+	if s.broadcast != nil {
+		s.broadcast.Stop()
 	}
 	s.config = config.NewConfigManagerAt(filepath.Join(s.directory, "config"))
 	if err := s.config.Replace(config.NewDefaultConfig()); err != nil {
@@ -77,6 +97,7 @@ func (s *Server) reset() error {
 	if err := s.windows.Register("main"); err != nil {
 		return err
 	}
+	s.initWorkflow()
 	s.input = shortcut.NewServiceWithDriver(s, s.driver)
 	cfg := s.config.Get()
 	return s.input.Start(cfg.Shortcuts, cfg.KeyboardProtection)
@@ -92,10 +113,20 @@ func (s *Server) command(action string) {
 	s.mu.Unlock()
 	s.EmitEvent("harness-command", action)
 }
-func (s *Server) TriggerSolve()                  { s.command("solve") }
-func (s *Server) TriggerScreenshot()             { s.command("screenshot") }
-func (s *Server) TriggerSend()                   { s.command("send") }
-func (s *Server) TriggerDeleteScreenshot()       { s.command("delete") }
+func (s *Server) TriggerSolve() { s.TriggerSend() }
+func (s *Server) TriggerScreenshot() {
+	s.command("screenshot")
+	if err := s.workflow.Capture(); err != nil {
+		s.EmitEvent("toast", err.Error())
+	}
+}
+func (s *Server) TriggerSend() {
+	s.command("send")
+	if id, err := s.workflow.Send(); err != nil && id == 0 {
+		s.EmitEvent("toast", err.Error())
+	}
+}
+func (s *Server) TriggerDeleteScreenshot()       { s.command("delete"); s.workflow.RemoveLast() }
 func (s *Server) ToggleVisibility()              { s.command("toggle") }
 func (s *Server) ToggleClickThrough()            { s.command("clickthrough") }
 func (s *Server) MoveWindow(x, y int)            { s.command(fmt.Sprintf("move:%d:%d", x, y)) }
@@ -115,6 +146,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Cache-Control", "no-store")
+	if strings.HasPrefix(r.URL.Path, "/broadcast/") {
+		s.requests.Lock()
+		viewer := s.broadcast
+		s.requests.Unlock()
+		http.StripPrefix("/broadcast", viewer.Handler()).ServeHTTP(w, r)
+		return
+	}
 	if r.URL.Path == "/health" {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ready: simulated native ports"))
@@ -216,6 +254,9 @@ func (s *Server) call(method string, args []json.RawMessage) (any, error) {
 			return err.Error(), nil
 		}
 		err = s.input.Configure(cfg.Shortcuts, cfg.KeyboardProtection, func() error { return s.config.Replace(cfg) })
+		if err == nil && !cfg.KeepContext {
+			s.workflow.ClearContext()
+		}
 		return errorText(err), nil
 	case "SetInputEditing":
 		editing, err := argument[bool](args, 0)
@@ -283,10 +324,8 @@ func (s *Server) call(method string, args []json.RawMessage) (any, error) {
 	case "HarnessFailDriver":
 		s.driver.Fail(errors.New("simulated listener interrupted"))
 		return nil, nil
-	case "HarnessFailSave":
-		// A separate directory path makes atomic file replacement fail on all OSes.
-		s.config = config.NewConfigManagerAt(s.directory)
-		return nil, nil
+	case "GetWorkflowStatus", "TriggerScreenshot", "TriggerSend", "TriggerSolve", "RemoveScreenshot", "ClearScreenshots", "CancelRunningTask", "CancelRequest", "HarnessModelSnapshot", "HarnessModelChunk", "HarnessModelFinish", "HarnessModelFail":
+		return s.workflowCall(method, args)
 	default:
 		return nil, fmt.Errorf("unsupported harness method %s", method)
 	}

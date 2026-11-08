@@ -1,20 +1,10 @@
-// Package broadcast 提供一个本地 HTTP server，用来把 LLM 答案实时推给局域网内的其他设备（如 iPad）。
-//
-// 设计目标：
-//   - 零侵入核心隐身逻辑：只监听本地端口，不触碰任何 platform/window/shortcut 模块。
-//   - SSE（Server-Sent Events）流式推送，iPad Safari 原生支持。
-//   - 当前答案在内存中始终保留，新客户端连上后立即收到当前状态（断线重连友好）。
-//   - 支持流式拼接 chunk、最终整段替换、手动清空三种写入模式。
-//
-// 安全：目前按用户选择不加认证（方案 A），监听 0.0.0.0 允许局域网访问。
-// 如需升级安全级别，可在 NewServer 中加一个 token 参数并在 handler 里校验。
+// Package broadcast projects workflow events to a reconnectable SSE view.
 package broadcast
 
 import (
-	"Q-Solver/pkg/logger"
+	"Q-Solver/internal/solve/domain"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -22,248 +12,214 @@ import (
 	"time"
 )
 
-// DefaultPort 是 broadcaster 默认监听端口。
-// 选一个不太容易冲突的端口（5 位数、非常见服务端口）。
 const DefaultPort = 47821
 
-// event 是推给 SSE 客户端的一条事件。
 type event struct {
-	Kind    string `json:"kind"`    // "start" | "chunk" | "final" | "clear" | "ping"
-	Content string `json:"content"` // chunk 内容 或 final 整段 或 空
-	Seq     int    `json:"seq"`     // 递增序号，便于前端判定乱序/丢包
+	Kind      string `json:"kind"`
+	Content   string `json:"content"`
+	Seq       uint64 `json:"seq"`
+	RequestID int64  `json:"requestId"`
+	Phase     string `json:"phase"`
 }
-
-// Server 是 broadcaster 的核心。线程安全。
 type Server struct {
-	port int
-	srv  *http.Server
-
-	mu          sync.RWMutex
-	currentText string // 当前答案的累积内容（最终完成后等于 final 整段）
-	finalized   bool   // 当前答案是否已完成
-	seq         int
-
-	subs  map[chan event]struct{}
-	subMu sync.Mutex
-
-	running bool
+	lifecycle        sync.Mutex
+	mu               sync.Mutex
+	address          string
+	port             int
+	srv              *http.Server
+	listener         net.Listener
+	running, closed  bool
+	state            event
+	workflowSequence uint64
+	subs             map[chan event]struct{}
 }
 
-// NewServer 创建但不启动 server。port=0 时使用默认端口。
+// NewServer preserves the existing opt-in LAN viewer address. Development uses
+// Handler on its loopback server and never calls Start.
 func NewServer(port int) *Server {
 	if port <= 0 {
 		port = DefaultPort
 	}
-	return &Server{
-		port: port,
-		subs: make(map[chan event]struct{}),
-	}
+	return NewServerAt(fmt.Sprintf(":%d", port))
 }
-
-// Start 启动 HTTP server（异步）。多次调用无副作用。
+func NewServerAt(address string) *Server {
+	return &Server{address: address, state: event{Kind: "snapshot", Phase: "idle"}, subs: make(map[chan event]struct{})}
+}
+func (s *Server) Handler() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /", s.handleIndex)
+	mux.HandleFunc("GET /stream", s.handleStream)
+	mux.HandleFunc("GET /current", s.handleCurrent)
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, "ok") })
+	return mux
+}
 func (s *Server) Start() error {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.running {
-		s.mu.Unlock()
 		return nil
 	}
-	s.running = true
-	s.mu.Unlock()
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", s.handleIndex)
-	mux.HandleFunc("/stream", s.handleStream)
-	mux.HandleFunc("/current", s.handleCurrent)
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	})
-
-	s.srv = &http.Server{
-		Addr:              fmt.Sprintf(":%d", s.port),
-		Handler:           mux,
-		ReadHeaderTimeout: 5 * time.Second,
+	listener, err := net.Listen("tcp", s.address)
+	if err != nil {
+		return err
 	}
-
-	go func() {
-		logger.Printf("[broadcast] HTTP server 监听端口 %d (局域网访问: http://<本机IP>:%d/)", s.port, s.port)
-		if err := s.srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Printf("[broadcast] HTTP server 错误: %v", err)
-		}
-	}()
-
-	// 定期发送 ping 保活（部分代理/浏览器超过一定时间无数据会断开 SSE）
-	go s.pingLoop()
-
+	s.port = listener.Addr().(*net.TCPAddr).Port
+	s.listener = listener
+	s.srv = &http.Server{Handler: s.Handler(), ReadHeaderTimeout: 5 * time.Second}
+	s.running = true
+	s.closed = false
+	go s.srv.Serve(listener)
 	return nil
 }
-
-// Stop 优雅关闭 server 和所有 SSE 客户端。
 func (s *Server) Stop() {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	s.mu.Lock()
-	running := s.running
+	s.closed = true
 	s.running = false
-	srv := s.srv
-	s.mu.Unlock()
-
-	if !running || srv == nil {
-		return
-	}
-
-	// 关闭所有订阅通道
-	s.subMu.Lock()
 	for ch := range s.subs {
 		close(ch)
+		delete(s.subs, ch)
 	}
-	s.subs = make(map[chan event]struct{})
-	s.subMu.Unlock()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	_ = srv.Shutdown(ctx)
-	logger.Println("[broadcast] HTTP server 已停止")
+	srv := s.srv
+	listener := s.listener
+	s.mu.Unlock()
+	if listener != nil {
+		_ = listener.Close()
+	}
+	if srv != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
+			_ = srv.Close()
+		}
+	}
 }
-
-// LocalAddresses 返回当前机器上可能的局域网 IP 列表（供前端显示给用户）。
+func (s *Server) Port() int { s.mu.Lock(); defer s.mu.Unlock(); return s.port }
 func (s *Server) LocalAddresses() []string {
-	var out []string
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return out
+	s.mu.Lock()
+	port, running := s.port, s.running
+	s.mu.Unlock()
+	if !running {
+		return nil
 	}
-	for _, i := range ifaces {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return nil
+	}
+	var result []string
+	for _, i := range interfaces {
 		if i.Flags&net.FlagUp == 0 || i.Flags&net.FlagLoopback != 0 {
 			continue
 		}
-		addrs, err := i.Addrs()
-		if err != nil {
-			continue
-		}
-		for _, a := range addrs {
-			ipnet, ok := a.(*net.IPNet)
-			if !ok || ipnet.IP.IsLoopback() {
+		addresses, _ := i.Addrs()
+		for _, address := range addresses {
+			ip, ok := address.(*net.IPNet)
+			if !ok || ip.IP.IsLoopback() || ip.IP.To4() == nil {
 				continue
 			}
-			ip4 := ipnet.IP.To4()
-			if ip4 == nil {
-				continue
-			}
-			out = append(out, fmt.Sprintf("http://%s:%d/", ip4.String(), s.port))
+			result = append(result, fmt.Sprintf("http://%s:%d/", ip.IP.String(), port))
 		}
 	}
-	return out
+	return result
 }
 
-// Port 返回监听端口。
-func (s *Server) Port() int {
-	return s.port
-}
-
-// ---- 写入 API：由 solution 层在流式回调中调用 ----
-
-// StartNewAnswer 开始一段新答案，重置累积缓冲。
-func (s *Server) StartNewAnswer() {
+// Publish is a bounded, nonblocking observer. Mutation and enqueue share a lock,
+// so a slow client cannot reorder results or stall the producer.
+func (s *Server) Publish(input domain.Event) {
 	if s == nil {
 		return
 	}
 	s.mu.Lock()
-	s.currentText = ""
-	s.finalized = false
-	s.seq++
-	seq := s.seq
-	s.mu.Unlock()
-	s.broadcast(event{Kind: "start", Seq: seq})
-}
-
-// AppendChunk 追加一段流式增量内容。
-func (s *Server) AppendChunk(chunk string) {
-	if s == nil || chunk == "" {
+	defer s.mu.Unlock()
+	if input.Sequence <= s.workflowSequence {
 		return
 	}
-	s.mu.Lock()
-	s.currentText += chunk
-	s.seq++
-	seq := s.seq
-	s.mu.Unlock()
-	s.broadcast(event{Kind: "chunk", Content: chunk, Seq: seq})
-}
-
-// FinalizeAnswer 用最终整段替换当前答案并标记完成。
-// 对于 LLM 返回和流式累积不一致的情况（某些 provider 会出现），以 final 为准。
-func (s *Server) FinalizeAnswer(full string) {
-	if s == nil {
-		return
+	s.workflowSequence = input.Sequence
+	if input.Kind == "started" {
+		if input.RequestID <= s.state.RequestID {
+			return
+		}
+		s.state.RequestID = input.RequestID
+		s.state.Content = ""
+		s.state.Phase = "capturing"
+	} else {
+		if input.RequestID != s.state.RequestID || domain.Terminal(s.state.Phase) {
+			return
+		}
+		switch input.Kind {
+		case "ready":
+			s.state.Phase = "generating"
+		case "chunk":
+			s.state.Content += input.Text
+		case "completed":
+			s.state.Content = input.Text
+			s.state.Phase = "completed"
+		case "failed", "cancelled":
+			s.state.Phase = input.Kind
+		default:
+			return
+		}
 	}
-	s.mu.Lock()
-	s.currentText = full
-	s.finalized = true
-	s.seq++
-	seq := s.seq
-	s.mu.Unlock()
-	s.broadcast(event{Kind: "final", Content: full, Seq: seq})
+	s.state.Seq++
+	ev := event{Kind: input.Kind, Content: input.Text, Seq: s.state.Seq, RequestID: s.state.RequestID, Phase: s.state.Phase}
+	if input.Kind == "started" {
+		ev.Content = ""
+	}
+	s.enqueue(ev)
 }
-
-// Clear 清空当前答案（用于 panic 退出清理）。
 func (s *Server) Clear() {
 	if s == nil {
 		return
 	}
 	s.mu.Lock()
-	s.currentText = ""
-	s.finalized = false
-	s.seq++
-	seq := s.seq
-	s.mu.Unlock()
-	s.broadcast(event{Kind: "clear", Seq: seq})
+	defer s.mu.Unlock()
+	s.state.Content = ""
+	s.state.Phase = "cancelled"
+	s.state.Seq++
+	s.enqueue(s.snapshot())
 }
-
-// ---- 内部：订阅和分发 ----
-
+func (s *Server) snapshot() event { state := s.state; state.Kind = "snapshot"; return state }
+func (s *Server) enqueue(ev event) {
+	for ch := range s.subs {
+		select {
+		case ch <- ev:
+		default:
+			// Replace an incomplete delta backlog with a complete current snapshot.
+		drain:
+			for {
+				select {
+				case <-ch:
+				default:
+					break drain
+				}
+			}
+			ch <- s.snapshot()
+		}
+	}
+}
 func (s *Server) subscribe() chan event {
-	ch := make(chan event, 64)
-	s.subMu.Lock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ch := make(chan event, 16)
+	if s.closed {
+		close(ch)
+		return ch
+	}
 	s.subs[ch] = struct{}{}
-	s.subMu.Unlock()
+	ch <- s.snapshot() // Atomic with registration: no snapshot/subscription gap.
 	return ch
 }
-
 func (s *Server) unsubscribe(ch chan event) {
-	s.subMu.Lock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if _, ok := s.subs[ch]; ok {
 		delete(s.subs, ch)
 		close(ch)
 	}
-	s.subMu.Unlock()
 }
-
-func (s *Server) broadcast(ev event) {
-	s.subMu.Lock()
-	for ch := range s.subs {
-		// 非阻塞：缓冲满了就丢弃（宁可让慢速客户端丢数据也别卡主线）
-		select {
-		case ch <- ev:
-		default:
-		}
-	}
-	s.subMu.Unlock()
-}
-
-func (s *Server) pingLoop() {
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
-	for range ticker.C {
-		s.mu.RLock()
-		running := s.running
-		s.mu.RUnlock()
-		if !running {
-			return
-		}
-		s.broadcast(event{Kind: "ping"})
-	}
-}
-
-// ---- HTTP Handlers ----
-
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
@@ -271,68 +227,47 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write([]byte(indexHTML))
+	fmt.Fprint(w, indexHTML)
 }
-
 func (s *Server) handleCurrent(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	payload := struct {
-		Content   string `json:"content"`
-		Finalized bool   `json:"finalized"`
-		Seq       int    `json:"seq"`
-	}{s.currentText, s.finalized, s.seq}
-	s.mu.RUnlock()
-
+	s.mu.Lock()
+	snapshot := s.snapshot()
+	s.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
-	_ = json.NewEncoder(w).Encode(payload)
+	json.NewEncoder(w).Encode(snapshot)
 }
-
 func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		http.Error(w, "streaming unsupported", 500)
 		return
 	}
-
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no") // 防止反向代理缓冲
-
-	// 首帧：把当前累积内容立刻推给新客户端
-	s.mu.RLock()
-	initEv := event{
-		Kind:    "final",
-		Content: s.currentText,
-		Seq:     s.seq,
-	}
-	if !s.finalized {
-		initEv.Kind = "final" // 仍发 final 类型让前端直接替换，避免 chunk 拼接错误
-	}
-	s.mu.RUnlock()
-	writeSSE(w, initEv)
-	flusher.Flush()
-
+	w.Header().Set("X-Accel-Buffering", "no")
 	ch := s.subscribe()
 	defer s.unsubscribe(ch)
-
-	ctx := r.Context()
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
 	for {
 		select {
-		case <-ctx.Done():
+		case <-r.Context().Done():
 			return
+		case <-ticker.C:
+			if _, err := fmt.Fprint(w, ": keepalive\n\n"); err != nil {
+				return
+			}
+			flusher.Flush()
 		case ev, ok := <-ch:
 			if !ok {
 				return
 			}
-			writeSSE(w, ev)
+			data, _ := json.Marshal(ev)
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
+				return
+			}
 			flusher.Flush()
 		}
 	}
-}
-
-func writeSSE(w http.ResponseWriter, ev event) {
-	b, _ := json.Marshal(ev)
-	_, _ = fmt.Fprintf(w, "data: %s\n\n", b)
 }
