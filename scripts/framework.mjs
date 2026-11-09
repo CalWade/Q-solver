@@ -58,7 +58,7 @@ export async function materializeFramework({ source, target, manifest, patchPath
       await chmod(resolve(staging, path), 0o644)
     }
     // git apply runs on the isolated copy; manifest paths are restricted above.
-    await run('git', ['apply', '--unsafe-paths', `--directory=${(await realpath(staging)).replaceAll('\\', '/')}`, await realpath(patchPath)])
+    await run('git', ['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'apply', '--unsafe-paths', `--directory=${(await realpath(staging)).replaceAll('\\', '/')}`, await realpath(patchPath)])
     if (!await matches(staging, manifest.files, 'after')) throw new Error('Framework patch output failed verification')
     await writeFile(resolve(staging, '.q-solver-patch.json'), JSON.stringify({ module: manifest.module, version: manifest.version, patchDigest }) + '\n')
     await rename(staging, target)

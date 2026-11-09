@@ -27,6 +27,13 @@ test('patches only the owned copy, then reuses verified output', async t => {
   assert.equal(await readFile(resolve(f.target, f.path), 'utf8'), 'after\n')
   await materializeFramework({ ...f, run: () => assert.fail('verified cache should not be patched again') })
 })
+test('the owned framework keeps pinned LF bytes when Git defaults to CRLF', async t => {
+  const f = await fixture(t)
+  const run = (bin, args) => f.run(bin, ['-c', 'core.autocrlf=true', '-c', 'core.eol=crlf', ...args])
+  await materializeFramework({ ...f, run })
+  assert.equal(await readFile(resolve(f.target, f.path), 'utf8'), 'after\n')
+  assert.equal(await readFile(resolve(f.source, f.path), 'utf8'), 'before\n')
+})
 test('upstream drift and local changes are refused without deleting data', async t => {
   const f = await fixture(t)
   await writeFile(resolve(f.source, f.path), 'unexpected upstream\n')

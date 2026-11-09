@@ -82,6 +82,7 @@ async function dev() {
       shutdown()
     }
   })
+  publishStatus({ type: 'waiting-ready', processes: [backend.pid, ui.pid] })
   for (let i = 0; i < 100 && !stopping; i++) {
     try {
       const responses = await Promise.all(['http://127.0.0.1:4317/health', 'http://127.0.0.1:4173'].map(url => fetch(url, { signal: AbortSignal.timeout(500) })))
