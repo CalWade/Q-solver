@@ -49,6 +49,9 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
+      - name: Prepare Native Framework
+        run: node scripts/run.mjs prepare
+
       - name: Build App
         run: wails build -ldflags "-s -w" -tags prod
 
@@ -107,6 +110,9 @@ jobs:
       - name: Install Frontend Dependencies
         working-directory: ./frontend
         run: npm ci
+
+      - name: Prepare Native Framework
+        run: node scripts/run.mjs prepare
 
       - name: Build App
         run: wails build -ldflags "-s -w" -tags prod
@@ -171,6 +177,9 @@ jobs:
       - name: Install Frontend Dependencies
         working-directory: ./frontend
         run: npm ci
+
+      - name: Prepare Native Framework
+        run: node scripts/run.mjs prepare
 
       - name: Build App
         run: wails build -ldflags "-s -w" -tags prod -platform darwin/amd64

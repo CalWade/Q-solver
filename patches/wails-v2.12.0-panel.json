@@ -1,0 +1,24 @@
+{
+  "module": "github.com/wailsapp/wails/v2",
+  "version": "v2.12.0",
+  "moduleSum": "h1:BHO/kLNWFHYjCzucxbzAYZWUjub1Tvb4cSguQozHn5c=",
+  "goModSum": "h1:mo1bzK1DEJrobt7YrBjgxvb5Sihb1mhAY09hppbibQg=",
+  "files": {
+    "internal/frontend/desktop/darwin/WailsContext.h": {
+      "before": "2aad701fd4269806f2d5f26bc2b1c310d47e9b42a6a76aa3824a41aba8f24e74",
+      "after": "9cad9fdda358e7f994e9ec30665407e7a67aada16d7b85508a44a7424eba9fe5"
+    },
+    "internal/frontend/desktop/darwin/WailsContext.m": {
+      "before": "5d597d5a75577c9a7e393494bf3cc3b8e3efd7098a820c2272fd4f88c00c686b",
+      "after": "cdaed639e6c6701318c9e6b6843ffd8766b4ba2ea68dc8684edf61839ffcd8ff"
+    },
+    "internal/frontend/desktop/darwin/AppDelegate.m": {
+      "before": "ee630f4d3be178d6b015b1f9ce53e90402c7128fd4ced6e2bb0811c52d58afe7",
+      "after": "56d03f55e93d0036034776038eb909908b00b8b26edf416d5d6299a5eb99c829"
+    },
+    "internal/frontend/desktop/darwin/WailsWebView.m": {
+      "before": "c3c577ececee1ad56c1ffa4753e1c74ebb0ae31a2ce4974e9cfd0f97c887c206",
+      "after": "4d0bf7b3b4a59aeeac41d4ad079c18973964916dd879d82fdd18d7808a169e48"
+    }
+  }
+}

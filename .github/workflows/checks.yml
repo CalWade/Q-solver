@@ -28,14 +28,15 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
         working-directory: frontend
+      - run: node scripts/run.mjs prepare
       - run: npm test
         working-directory: frontend
-      - run: node --test scripts/toolchain.test.mjs scripts/compatibility.test.mjs
+      - run: node --test scripts/framework.test.mjs scripts/toolchain.test.mjs scripts/compatibility.test.mjs
       - run: node scripts/compatibility.mjs
       - run: npm run build
         working-directory: frontend
       - run: go test -race -coverprofile=coverage.out ./...
-      - run: go build -tags prod -o build/test-app .
+      - run: node scripts/run.mjs build
       - uses: actions/upload-artifact@v4
         if: always()
         with:

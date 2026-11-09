@@ -39,7 +39,7 @@ func (r *Report) Evaluate() bool {
 	}
 	r.Checks = append(r.Checks, Check{"all lifecycle stages observed", len(seen) == len(expected)})
 	r.Limitations = []string{
-		"原型宿主是独立 AppKit NSPanel + WKWebView，尚未替换生产 Wails 2 宿主。",
+		"该报告来自独立 AppKit NSPanel + WKWebView；生产 Wails 宿主须单独运行 host-probe。",
 		"验证系统属性、禁止成为 key window、显示/关闭/重建及截图租约；未模拟物理点击或输入法编辑。",
 		"未采集任何屏幕或会议画面；sharingType 属性成功不等于 ScreenCaptureKit 或会议远端不可见。",
 		"没有使用真实会议、公司群、笔试平台、模型凭据或全局键盘钩子。",

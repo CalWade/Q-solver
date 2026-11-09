@@ -1,6 +1,7 @@
 import { spawn, execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { ensureWails } from './toolchain.mjs'
+import { prepareFramework } from './framework.mjs'
 import { mkdir, access, readFile, writeFile, chmod } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -69,7 +70,10 @@ async function dev() {
 }
 
 try {
+  await prepareFramework({ root, capture, run })
   switch (command) {
+    case 'prepare': console.log('Pinned native framework is ready.'); break
+    case 'harness': await run('go', ['run', './cmd/harness']); break
     case 'dev': await dev(); break
     case 'doctor':
       await run('go', ['version']); await run(npm, ['--version']);
@@ -79,20 +83,22 @@ try {
       await run(npm, ['test'], frontend)
       await run(npm, ['run', 'build'], frontend)
       await run('go', ['test', '-race', './...'])
-      await run(process.execPath, ['--test', 'scripts/toolchain.test.mjs', 'scripts/compatibility.test.mjs', 'scripts/run.test.mjs'])
+      await run(process.execPath, ['--test', 'scripts/framework.test.mjs', 'scripts/toolchain.test.mjs', 'scripts/compatibility.test.mjs', 'scripts/run.test.mjs'])
       await run(process.execPath, ['scripts/compatibility.mjs'])
       await run(npm, ['run', 'test:e2e'], frontend)
       break
     case 'bindings': await run(await wails(), ['generate', 'module']); await normalizeBindings(); break
     case 'build': await run(await wails(), ['build', '-tags', 'prod']); await normalizeBindings(); break
-    case 'panel-probe': {
+    case 'panel-probe':
+    case 'host-probe': {
       if (process.platform !== 'darwin') throw new Error('The native panel probe currently requires macOS.')
       await mkdir(resolve(root, '.local/bin'), { recursive: true })
-      const executable = resolve(root, '.local/bin/panelprobe')
-      await run('go', ['build', '-o', executable, './cmd/panelprobe'])
+      const target = command === 'host-probe' ? 'hostprobe' : 'panelprobe'
+      const executable = resolve(root, '.local/bin', target)
+      await run('go', ['build', '-tags', 'production', '-o', executable, `./cmd/${target}`])
       await run(executable, [])
       break
     }
-    default: throw new Error('Usage: node scripts/run.mjs [dev|doctor|check|bindings|build|panel-probe]')
+    default: throw new Error('Usage: node scripts/run.mjs [prepare|dev|harness|doctor|check|bindings|build|panel-probe|host-probe]')
   }
 } catch (error) { console.error(error.message); await shutdown(); process.exitCode = 1 }

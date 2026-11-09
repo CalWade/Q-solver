@@ -4,6 +4,8 @@
 
 Wails CLI 首次使用时从该精确版本自己的依赖清单构建到 `.local/bin/wails-v2.12.0`，后续复用。它避开 `go run 包@版本` 的额外子模块/废弃版本在线查询；已缓存的工具不因这些查询不可达而无法运行。工具源码仍归属 Go 模块缓存，不修改全局安装。
 
+开发与构建命令会先准备 `.local/framework/wails-v2.12.0`：从固定模块复制源码，只在项目副本上应用 `patches/` 中的 macOS 面板补丁，并校验前后哈希。Windows 也使用这份固定依赖，其平台代码没有补丁。首次使用需要能取得锁定依赖；以后可复用缓存。直接运行 Go 命令前先执行 `node scripts/run.mjs prepare`，否则本地依赖尚不存在。四个补丁文件有人工修改时会报错并保留，不自动覆盖。
+
 ```sh
 npm --prefix frontend ci
 node scripts/run.mjs doctor
@@ -19,6 +21,7 @@ make e2e          # 自动启动两个服务、运行浏览器、保留失败截
 make check        # 前端测试/构建、全量 Go race 测试、E2E
 make build        # 原生应用打包，不启动应用
 make panel-probe  # macOS：短暂显示隔离原生面板，自动验证并关闭
+make host-probe   # macOS：真实 Wails 宿主进入编辑，再恢复原应用并关闭
 make compatibility # 校验兼容性记录结构，明确输出未测试数量
 ```
 
@@ -39,6 +42,6 @@ macOS 的 E2E 默认复用已安装的 Chrome，使用独立临时浏览器配�
 
 CI 的 Windows/macOS 测试编译并测试对应适配器，但不会安装全局钩子。一次构建成功不能当作两个系统的行为实测。真实会议测试必须另建个人测试会议、独立接收端，记录版本和共享方式，不使用公司群。
 
-隔离环境的副机页面在 `http://127.0.0.1:4173/broadcast/`。测试用模型可逐段输出、延迟、报错及故意发送旧回调；它复用生产请求服务和模型端口，不读取真实密钥。原生面板报告写入 `.local/reports/panel-probe.json`。普通 `check` 不启动原生窗口；`panel-probe` 是独立、可自主运行的原生验收入口。
+隔离环境的副机页面在 `http://127.0.0.1:4173/broadcast/`。测试用模型可逐段输出、延迟、报错及故意发送旧回调；它复用生产请求服务和模型端口，不读取真实密钥。原生报告写入 `.local/reports/panel-probe.json` 和 `host-probe.json`。普通 `check` 不启动原生窗口；两个 probe 是独立、可自主运行的原生验收入口，`host-probe` 会短暂获取编辑焦点。直接编译该宿主须使用 Wails 的 `production` 标签；项目自有的 `prod` 标签不能代替它，统一脚本已处理这一区别。
 
 `node scripts/compatibility.mjs --require-complete` 用于真正的平台验收门槛：有未测试项、缺失版本/证据、缺失独立接收端或不确定结果都会失败。普通结构校验通过不等于兼容性验证通过。

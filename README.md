@@ -37,7 +37,7 @@ Q-Solver 是一个桌面端 AI 做题助手。
 - 支持隐藏模式，更适合低存在感使用
 - 悬浮展示，不抢当前应用焦点
 - 支持鼠标穿透，方便挂在屏幕边上随看随用
-- 对多数录屏 / 共享场景更不显眼
+- 提供系统捕获保护设置；实际共享效果按系统、平台和捕获方式分别验证
 
 ---
 
@@ -118,22 +118,22 @@ Q-Solver 是一个桌面端 AI 做题助手。
 
 - Go 1.25+
 - Node.js 22+
-- Wails CLI
+- Git 和系统原生编译工具；项目自动准备固定版本 Wails
 
 ```bash
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
-
-git clone https://github.com/jym66/Q-solver.git
+git clone https://github.com/CalWade/Q-solver.git
 cd Q-Solver
-
-wails dev
+npm --prefix frontend ci
+node scripts/run.mjs dev
 ```
 
 构建发布版：
 
 ```bash
-wails build -ldflags "-s -w" -tags prod
+node scripts/run.mjs build
 ```
+
+`dev` 启动隔离的真实前端和 Go 测试服务，使用合成数据。`build` 生成原生应用但不启动。完整测试运行 `node scripts/run.mjs check`。详见 [开发入口](docs/development.md)、[分层架构](docs/architecture.md) 和 [实际兼容性记录](docs/compatibility/README.md)。源码入口会校验并准备固定的 macOS 面板宿主补丁，不需要全局安装 Wails。
 
 ---
 
@@ -164,7 +164,7 @@ wails build -ldflags "-s -w" -tags prod
 | 微调窗口位置 | `Alt + 方向键` | `Cmd + Option + 方向键` |
 | 滚动内容 | `Alt + PgUp / PgDn` | `Cmd + Option + Shift + 方向键` |
 
-> macOS 当前使用固定快捷键；Windows 支持在设置中录制和调整。
+> 两个平台均支持在设置中录制和调整快捷键；键盘防护需单独开启，并以实际状态反馈为准。
 
 
 

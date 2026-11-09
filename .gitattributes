@@ -1,0 +1,3 @@
+# Patch context must match the LF files in the pinned Go module on every OS.
+# Unified diff represents an empty context line with a single space.
+patches/*.patch text eol=lf whitespace=-blank-at-eol

@@ -1,0 +1,69 @@
+{
+  "system": "Version 27.0 (Build 26A428)",
+  "host": "Wails v2.12.0 with pinned passive-panel patch",
+  "pageReady": true,
+  "textRoundTrip": true,
+  "observations": [
+    {
+      "stage": "startup-passive",
+      "panel": true,
+      "nonActivating": true,
+      "hasEditingGate": true,
+      "canBecomeKey": false,
+      "key": false,
+      "foregroundIsApp": false,
+      "foregroundRestored": true
+    },
+    {
+      "stage": "explicit-editor",
+      "panel": true,
+      "nonActivating": true,
+      "hasEditingGate": true,
+      "canBecomeKey": true,
+      "key": true,
+      "foregroundIsApp": true,
+      "foregroundRestored": false
+    },
+    {
+      "stage": "returned-passive",
+      "panel": true,
+      "nonActivating": true,
+      "hasEditingGate": true,
+      "canBecomeKey": false,
+      "key": false,
+      "foregroundIsApp": false,
+      "foregroundRestored": true
+    }
+  ],
+  "checks": [
+    {
+      "name": "real Wails page and bridge ready",
+      "passed": true
+    },
+    {
+      "name": "explicit editor DOM focus and text round trip",
+      "passed": true
+    },
+    {
+      "name": "startup-passive",
+      "passed": true
+    },
+    {
+      "name": "explicit-editor",
+      "passed": true
+    },
+    {
+      "name": "returned-passive",
+      "passed": true
+    },
+    {
+      "name": "all host transitions observed",
+      "passed": true
+    }
+  ],
+  "limitations": [
+    "运行固定补丁的真实 Wails 2 宿主与生产窗口管理器；没有调用模型或真实平台账号。",
+    "文本由隔离页面程序写入，用于验证 WebView 焦点及桥接；不是物理按键或中文输入法验收。",
+    "没有捕获屏幕或会议远端画面，也未验证外部浏览器的监测事件。"
+  ]
+}

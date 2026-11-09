@@ -37,7 +37,7 @@ Its core strengths are:
 - hidden mode for lower-profile use
 - floating output that does not keep stealing focus
 - click-through support so it can stay at the edge of your screen
-- less noticeable in many screen recording or screen sharing setups
+- system capture protection settings, with sharing results verified separately for each OS, platform and capture mode
 
 ---
 
@@ -118,22 +118,22 @@ Requirements:
 
 - Go 1.25+
 - Node.js 22+
-- Wails CLI
+- Git and native build tools; project scripts prepare the pinned Wails version
 
 ```bash
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
-
-git clone https://github.com/jym66/Q-solver.git
+git clone https://github.com/CalWade/Q-solver.git
 cd Q-Solver
-
-wails dev
+npm --prefix frontend ci
+node scripts/run.mjs dev
 ```
 
 Build a production package:
 
 ```bash
-wails build -ldflags "-s -w" -tags prod
+node scripts/run.mjs build
 ```
+
+`dev` starts the isolated Vue UI and Go test services with synthetic data. `build` packages the native application without launching it. Run `node scripts/run.mjs check` for automated tests. See [development](docs/development.md), [architecture](docs/architecture.md) and [compatibility evidence](docs/compatibility/README.md). Scripts verify and prepare the pinned macOS panel patch; no global Wails CLI is required.
 
 ---
 
@@ -164,7 +164,7 @@ Default shortcuts:
 | Move window slightly | `Alt + Arrow Keys` | `Cmd + Option + Arrow Keys` |
 | Scroll content | `Alt + PgUp / PgDn` | `Cmd + Option + Shift + Arrow Keys` |
 
-> macOS currently uses fixed shortcuts. Windows supports recording and adjusting shortcuts in settings.
+> Both platforms support recording and adjusting shortcuts. Keyboard protection is enabled separately; check the reported runtime status.
 
 ---
 

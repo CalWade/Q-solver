@@ -14,7 +14,7 @@ export default defineConfig({
     trace: 'retain-on-failure', screenshot: 'only-on-failure',
   },
   webServer: [
-    { name: 'Go harness', command: 'go run ../cmd/harness', url: 'http://127.0.0.1:4317/health', reuseExistingServer: false, timeout: 120000, gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 } },
+    { name: 'Go harness', command: 'node ../scripts/run.mjs harness', url: 'http://127.0.0.1:4317/health', reuseExistingServer: false, timeout: 120000, gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 } },
     { name: 'Vue UI', command: 'npm run dev -- --mode harness', url: 'http://127.0.0.1:4173', reuseExistingServer: false, gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 } },
   ],
 })

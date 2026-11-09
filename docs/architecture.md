@@ -48,7 +48,7 @@ app 负责装配，不在领域层引用 Wails、操作系统或全局配置
 
 截图使用引用计数租约。新增窗口也继承正在执行的截图状态；最后一个租约释放时应用最新策略。截图、恢复、编码分别处理错误，不能因抓图完成就漏掉恢复失败。`internal/capture` 的来源、图像处理和窗口保护均由端口注入，页面预览与业务截图共用该管道。
 
-Windows 区分排除捕获与旧系统的内容留空；macOS 确认 sharingType 属性设置完成，但不把它描述为所有捕获路径验证成功。Wails 2 在 macOS 启动时仍主动激活应用，其限制必须通过宿主原型解决，窗口状态模块不伪造该能力。
+Windows 区分排除捕获与旧系统的内容留空；macOS 确认 sharingType 属性设置完成，但不把它描述为所有捕获路径验证成功。macOS 宿主通过下述固定补丁提供被动面板，窗口状态模块仍只确认接口执行结果。
 
 ## 请求与同步显示模块
 
@@ -67,5 +67,15 @@ Observer 接收有序、不可变的事件。当前 UI 适配器投递 Wails 事
 `cmd/panelprobe` 使用独立 AppKit NSPanel + WKWebView，复用生产窗口应用服务和 macOS 原生适配器。面板在创建时设置 nonactivating 标记，并明确拒绝成为 key/main window；显示操作不请求应用激活。测试结果与局限见 `docs/compatibility/README.md`。
 
 Wails 3.1.0 已有 NSPanel 选项，但其 `WebviewPanel.canBecomeKeyWindow` 返回 YES。这能保持另一个应用的激活状态，却不能直接提供输出面板拒绝键盘焦点的规则。仅升级框架还不够。生产接入需要分别处理被动输出面板和显式编辑窗口，并验证中文输入法、关闭编辑后的焦点恢复及窗口重建。
+
+## 生产宿主与显式编辑
+
+采用 Wails 2.12.0 的固定、最小 Darwin 宿主补丁，保留现有 Go 绑定和 Vue 页面。`patches/` 保存四个文件的差异及前后哈希；`scripts/framework.mjs` 从校验过的模块源创建项目私有副本。Go 的共享模块缓存不被改写；这四个文件的源码或补丁结果不符、已有补丁文件被修改时停止构建。更新上游必须重新审阅补丁、更新哈希并运行原生自检。
+
+窗口在构造时就是 nonactivating NSPanel，默认 `canBecomeKeyWindow == false`，启动不主动激活应用。被动状态下 WebView 允许首击，仍拒绝键盘焦点。设置对话框明确请求编辑后，平台适配器才开启焦点门、保存前台应用并激活编辑窗口。退出编辑关闭焦点门；仅在编辑窗口仍拥有焦点时恢复原应用，避免覆盖用户自行切换的应用。
+
+该窗口实现只属于基础设施层。领域层仍用 `Passive / Editing` 表达意图，不依赖 NSPanel 或 Wails。原生能力缺失会返回失败，不以一次普通 NSWindow 调用冒充被动面板成功。
+
+`cmd/hostprobe` 运行相同的补丁宿主和生产 StateManager，加载本地合成输入框，自动验证启动被动、显式编辑及返回被动。系统焦点与 WebView 焦点异步到达，测试分别等待并确认，不使用固定睡眠推断成功。页面加载失败也会超时退出。此项不等同于物理按键、中文输入法或第三方平台验收。
 
 版本固定的参考：[Wails 3.1.0 面板实现](https://github.com/wailsapp/wails/blob/v3.1.0/v3/pkg/application/webview_panel_darwin.m)、[Wails 面板选项](https://wails.io/features/windows/options/)、[Apple becomesKeyOnlyIfNeeded](https://developer.apple.com/documentation/appkit/nspanel/becomeskeyonlyifneeded)。

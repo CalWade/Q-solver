@@ -11,6 +11,11 @@ package platform
 #import <QuartzCore/QuartzCore.h>
 #import <AVFoundation/AVFoundation.h>
 
+// Implemented by the pinned native host; ordinary NSWindow cannot provide this gate.
+@protocol QSEditingWindow
+- (void)setQSEditable:(BOOL)editable;
+@end
+
 static NSRunningApplication *qsPreviousApplication;
 static void QSWindowOnMain(dispatch_block_t block) {
     if ([NSThread isMainThread]) block();
@@ -71,8 +76,9 @@ void SetWindowStyleMaskBorderlessC(void* nsWindow) {
     NSWindow* window = (__bridge NSWindow*)nsWindow;
     QSWindowOnMain(^{
         // 保留 titled 样式以维持输入法上下文（IMK），同时隐藏标题栏
+        NSWindowStyleMask panelMode = window.styleMask & NSWindowStyleMaskNonactivatingPanel;
         [window setStyleMask:(NSWindowStyleMaskTitled |
-                              NSWindowStyleMaskFullSizeContentView)];
+                              NSWindowStyleMaskFullSizeContentView | panelMode)];
         [window setTitlebarAppearsTransparent:YES];
         [window setTitleVisibility:NSWindowTitleHidden];
         // 隐藏标题栏按钮
@@ -129,31 +135,40 @@ bool WindowValidC(void *nsWindow) {
 }
 
 // 设置窗口不激活
-void SetWindowNotActivatingC(void* nsWindow, bool noActivate) {
-    if (nsWindow == NULL) return;
+bool SetWindowNotActivatingC(void* nsWindow, bool noActivate) {
+    if (nsWindow == NULL) return false;
     NSWindow* window = (__bridge NSWindow*)nsWindow;
+    __block bool applied = false;
     QSWindowOnMain(^{
+        if (!QSWindowValid(window)) return;
         if (noActivate) {
-            // NSWindow cannot promise nonactivating clicks. This restores the
-            // previous app only when an explicit editor currently owns focus.
-            [window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces];
-            if (window.keyWindow && NSApp.active && qsPreviousApplication && !qsPreviousApplication.terminated) {
-                [window resignKeyWindow];
-                [qsPreviousApplication activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+            if ([window respondsToSelector:@selector(setQSEditable:)]) {
+                [(id<QSEditingWindow>)window setQSEditable:NO];
+            }
+            [window setCollectionBehavior:(window.collectionBehavior | NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary)];
+            BOOL ownedKey = window.keyWindow;
+            if (ownedKey) [window resignKeyWindow];
+            if (ownedKey && NSApp.active && qsPreviousApplication && !qsPreviousApplication.terminated) {
+                [qsPreviousApplication activateWithOptions:0];
             }
             [qsPreviousApplication release];
             qsPreviousApplication = nil;
-        } else {
-            [window setCollectionBehavior:NSWindowCollectionBehaviorDefault];
         }
+        applied = !noActivate || (!window.canBecomeKeyWindow && !window.keyWindow);
     });
+    return applied;
 }
 
 // 让窗口可以接收键盘焦点
-void SetWindowCanBecomeKeyC(void* nsWindow) {
-    if (nsWindow == NULL) return;
+bool SetWindowCanBecomeKeyC(void* nsWindow) {
+    if (nsWindow == NULL) return false;
     NSWindow* window = (__bridge NSWindow*)nsWindow;
+    __block bool applied = false;
     QSWindowOnMain(^{
+        if (!QSWindowValid(window)) return;
+        if ([window respondsToSelector:@selector(setQSEditable:)]) {
+            [(id<QSEditingWindow>)window setQSEditable:YES];
+        }
         NSRunningApplication *front = NSWorkspace.sharedWorkspace.frontmostApplication;
         if (front.processIdentifier != NSProcessInfo.processInfo.processIdentifier) {
             [qsPreviousApplication release];
@@ -161,7 +176,9 @@ void SetWindowCanBecomeKeyC(void* nsWindow) {
         }
         [NSApp activateIgnoringOtherApps:YES];
         [window makeKeyAndOrderFront:nil];
+        applied = window.canBecomeKeyWindow;
     });
+    return applied;
 }
 
 // 设置窗口接受鼠标事件时自动成为 key window
@@ -351,7 +368,9 @@ func RestoreFocus(hwnd WindowHandle) error {
 		return errors.New("窗口句柄已失效")
 	}
 	window := unsafe.Pointer(uintptr(hwnd))
-	C.SetWindowCanBecomeKeyC(window)
+	if !bool(C.SetWindowCanBecomeKeyC(window)) {
+		return errors.New("窗口未允许编辑焦点")
+	}
 	return nil
 }
 
@@ -361,7 +380,9 @@ func RemoveFocus(hwnd WindowHandle) error {
 		return errors.New("窗口句柄已失效")
 	}
 	window := unsafe.Pointer(uintptr(hwnd))
-	C.SetWindowNotActivatingC(window, C.bool(true))
+	if !bool(C.SetWindowNotActivatingC(window, C.bool(true))) {
+		return errors.New("当前宿主未提供被动面板，请使用项目构建入口")
+	}
 	return nil
 }
 
