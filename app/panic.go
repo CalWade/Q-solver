@@ -37,15 +37,14 @@ func (a *App) PanicExit() {
 	}
 
 	// 2. 取消当前 LLM 任务
-	if a.taskManager != nil {
-		a.taskManager.CancelCurrentTask()
+	if a.workflow != nil {
+		a.workflow.CancelCurrent()
+		a.workflow.ClearContext()
 	}
 
 	// 3. 清理运行态（注意：不动磁盘上的 history.dat，那是用户的资产）
-	screenshotBuffer = nil
-	if a.solver != nil {
-		a.solver.ClearHistory()
-	}
+	// Cancellation prevents late output. Process exit discards the in-memory
+	// screenshot queue without waiting on an in-progress native capture.
 
 	// 4. 清空局域网广播
 	if a.broadcaster != nil {

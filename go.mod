@@ -2,6 +2,9 @@ module Q-Solver
 
 go 1.24.1
 
+// Materialized from the pinned module plus reviewed patch by scripts/run.mjs prepare.
+replace github.com/wailsapp/wails/v2 => ./.local/framework/wails-v2.12.0
+
 require (
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
 	github.com/openai/openai-go v1.12.0

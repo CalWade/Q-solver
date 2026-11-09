@@ -1,6 +1,7 @@
 package app
 
 import (
+	solveapp "Q-Solver/internal/solve/application"
 	"Q-Solver/pkg/broadcast"
 	"Q-Solver/pkg/config"
 	"Q-Solver/pkg/history"
@@ -11,7 +12,6 @@ import (
 	"Q-Solver/pkg/shortcut"
 	"Q-Solver/pkg/solution"
 	"Q-Solver/pkg/state"
-	"Q-Solver/pkg/task"
 	"context"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -22,13 +22,12 @@ type App struct {
 
 	configManager *config.ConfigManager
 	stateManager  *state.StateManager
-	taskManager   *task.TaskCoordinator
+	workflow      *solveapp.Service
 
 	llmService      *llm.Service
 	resumeService   *resume.Service
 	shortcutService *shortcut.Service
 	screenService   *screen.Service
-	solver          *solution.Solver
 	broadcaster     *broadcast.Server
 	historyStore    *history.Store
 }
@@ -39,10 +38,9 @@ func NewApp() *App {
 	return &App{
 		configManager: configManager,
 		stateManager:  state.NewStateManager(),
-		taskManager:   task.NewTaskCoordinator(),
 		screenService: screen.NewService(),
-		broadcaster:   broadcast.NewServer(0),                  // 使用默认端口 47821
-		historyStore:  history.NewStore(config.SharedCipher),   // 加密历史落盘
+		broadcaster:   broadcast.NewServer(0),                // 使用默认端口 47821
+		historyStore:  history.NewStore(config.SharedCipher), // 加密历史落盘
 	}
 }
 
@@ -61,17 +59,16 @@ func (a *App) Startup(ctx context.Context) {
 
 	a.stateManager.Startup(ctx, a.EmitEvent)
 	a.screenService.Startup(ctx)
+	a.screenService.SetCaptureGuard(a.stateManager)
 
 	a.llmService = llm.NewService(a.configManager.Get(), a.configManager)
-	a.solver = solution.NewSolver(a.llmService.GetProvider())
+	a.workflow = solveapp.New(ctx, solution.SettingsSource{Manager: a.configManager}, workflowCapture{a.screenService}, solution.NewOpenAIGenerator(), workflowObserver{a})
 	a.resumeService = resume.NewService(a.configManager.Get(), a.configManager)
 
-	a.shortcutService = shortcut.NewService(a, a.configManager.Get().Shortcuts, func(callback func(map[string]shortcut.KeyBinding)) {
-		a.configManager.Subscribe(func(newConfig config.Config, oldConfig config.Config) {
-			callback(newConfig.Shortcuts)
-		})
-	})
-	a.shortcutService.Start()
+	a.shortcutService = shortcut.NewService(a)
+	if err := a.shortcutService.Start(cfg.Shortcuts, cfg.KeyboardProtection); err != nil {
+		logger.Printf("键盘服务未完全就绪: %v", err)
+	}
 
 	a.configManager.Subscribe(a.onConfigChanged)
 
@@ -86,16 +83,20 @@ func (a *App) Startup(ctx context.Context) {
 		}
 	}
 
-	a.stateManager.UpdateInitStatus(state.StatusReady)
+	ready := len(a.stateManager.GetWindowState().Windows) > 0
+	for _, window := range a.stateManager.GetWindowState().Windows {
+		ready = ready && window.Ready
+	}
+	if ready {
+		a.stateManager.UpdateInitStatus(state.StatusReady)
+	} else {
+		a.stateManager.UpdateInitStatus(state.StatusError)
+	}
 }
 
 func (a *App) onConfigChanged(newConfig config.Config, oldConfig config.Config) {
-	if a.solver != nil {
-		a.solver.SetProvider(a.llmService.GetProvider())
-	}
-
-	if !newConfig.KeepContext && a.solver != nil {
-		a.solver.ClearHistory()
+	if !newConfig.KeepContext && a.workflow != nil {
+		a.workflow.ClearContext()
 	}
 
 	logger.Println("配置已更新并应用")
@@ -105,9 +106,13 @@ func (a *App) OnShutdown(ctx context.Context) {
 	if a.shortcutService != nil {
 		a.shortcutService.Stop()
 	}
+	if a.workflow != nil {
+		a.workflow.Close()
+	}
 	if a.broadcaster != nil {
 		a.broadcaster.Stop()
 	}
+	a.stateManager.UnregisterWindow("main")
 	if err := a.configManager.Save(); err != nil {
 		logger.Printf("保存配置失败: %v", err)
 	}
@@ -118,7 +123,9 @@ func (a *App) EmitEvent(eventName string, data ...interface{}) {
 }
 
 func (a *App) Show() {
-	runtime.WindowShow(a.ctx)
+	if err := a.stateManager.SetVisible(true); err != nil {
+		logger.Printf("显示窗口失败: %v", err)
+	}
 }
 
 // GetBroadcastAddresses 返回当前机器上所有可用于 iPad/Mac 副机访问的广播地址。

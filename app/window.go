@@ -1,6 +1,23 @@
 package app
 
-import "Q-Solver/pkg/platform"
+import "Q-Solver/internal/window/domain"
+
+type WindowStatus domain.Status
+
+func (a *App) GetWindowStatus() WindowStatus { return WindowStatus(a.stateManager.GetWindowState()) }
+func (a *App) SetCaptureProtection(enabled bool) string {
+	return windowError(a.stateManager.SetCaptureProtection(enabled))
+}
+func (a *App) SetLocalVisible(visible bool) string {
+	return windowError(a.stateManager.SetVisible(visible))
+}
+func (a *App) RetryWindowPolicy() string { return windowError(a.stateManager.RetryWindowPolicy()) }
+func windowError(err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	return ""
+}
 
 // ToggleVisibility 切换可见性
 func (a *App) ToggleVisibility() {
@@ -18,24 +35,16 @@ func (a *App) MoveWindow(dx, dy int) {
 }
 
 // RestoreFocus 恢复焦点
-func (a *App) RestoreFocus() {
-	a.stateManager.RestoreFocus()
+func (a *App) RestoreFocus() string {
+	return windowError(a.stateManager.RestoreFocus())
 }
 
 // RemoveFocus 移除焦点
-func (a *App) RemoveFocus() {
-	a.stateManager.RemoveFocus()
+func (a *App) RemoveFocus() string {
+	return windowError(a.stateManager.RemoveFocus())
 }
 
 // SetWindowAlwaysOnTop 设置窗口是否置顶
-func (a *App) SetWindowAlwaysOnTop(alwaysOnTop bool) {
-	hwnd := a.stateManager.GetHwnd()
-	if hwnd == 0 {
-		return
-	}
-	if alwaysOnTop {
-		platform.SetWindowLevel(hwnd, platform.WindowLevelFloating)
-	} else {
-		platform.SetWindowLevel(hwnd, platform.WindowLevelNormal)
-	}
+func (a *App) SetWindowAlwaysOnTop(alwaysOnTop bool) string {
+	return windowError(a.stateManager.SetAlwaysOnTop(alwaysOnTop))
 }

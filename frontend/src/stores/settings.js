@@ -3,6 +3,8 @@ import { reactive, ref, computed, watch } from 'vue'
 import { api } from '../services/api'
 import { useUIStore } from './ui'
 import { currentTheme, setTheme } from '../services/theme'
+import { createRecorder, beginDialogEditing, endDialogEditing } from '../utils/input-model'
+import { inputEditing } from '../services/input-editing'
 
 export const useSettingsStore = defineStore('settings', () => {
   const ui = useUIStore()
@@ -23,9 +25,11 @@ export const useSettingsStore = defineStore('settings', () => {
     sharpening: 0,
     grayscale: true,
     noCompression: false,
+    keyboardProtection: { enabled: false, blockLeft: true, blockRight: false },
   })
 
-  const tempSettings = reactive({ ...settings })
+  const tempSettings = reactive(JSON.parse(JSON.stringify(settings)))
+  const keyboardStatus = ref({ state: 'stopped', capabilities: {} })
   const shortcuts = reactive({})
   const tempShortcuts = reactive({})
   const domainCategories = ref([])
@@ -40,6 +44,8 @@ export const useSettingsStore = defineStore('settings', () => {
 
   const recordingAction = ref(null)
   const recordingText = ref('')
+  let stopRecorder = null
+  let recordVersion = 0
   // shortcutActions 的 default/macDefault 仅作为 UI 展示的 fallback：
   // 当 shortcuts.<action>.keyName 还没从后端 load 进来时使用。
   // 真实运行时的快捷键由 Go 侧的 config.GetDefaultShortcuts() 决定，
@@ -49,7 +55,7 @@ export const useSettingsStore = defineStore('settings', () => {
     { action: 'screenshot', label: '截图', default: 'Alt+1', macDefault: 'Cmd+1' },
     { action: 'send', label: '发送解题', default: 'Alt+Enter', macDefault: 'Cmd+Return' },
     { action: 'delete', label: '删除截图', default: 'Alt+D', macDefault: 'Cmd+D' },
-    { action: 'toggle', label: '隐藏/显示', default: 'Alt+2', macDefault: 'Cmd+2' },
+    { action: 'toggle', label: '捕获保护', default: 'Alt+2', macDefault: 'Cmd+2' },
     { action: 'clickthrough', label: '鼠标穿透', default: 'Alt+3', macDefault: 'Cmd+3' },
     { action: 'move_up', label: '向上移动', default: 'Alt+Up', macDefault: 'Cmd+Option+Up' },
     { action: 'move_down', label: '向下移动', default: 'Alt+Down', macDefault: 'Cmd+Option+Down' },
@@ -171,6 +177,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   function applyConfig(config) {
+    settings.keyboardProtection = { enabled: false, blockLeft: true, blockRight: false, ...config.keyboardProtection }
     settings.apiKey = config.apiKey || ''
     settings.baseURL = config.baseURL || 'https://api.openai.com/v1'
     settings.model = config.model || ''
@@ -281,6 +288,7 @@ export const useSettingsStore = defineStore('settings', () => {
       resumePath: sourceSettings.resumePath,
       resumeContent: sourceSettings.resumeContent,
       shortcuts: sourceShortcuts,
+      keyboardProtection: { ...sourceSettings.keyboardProtection },
       theme: currentTheme.value,
     }
   }
@@ -295,16 +303,16 @@ export const useSettingsStore = defineStore('settings', () => {
         }
       }
 
-      Object.assign(shortcuts, JSON.parse(JSON.stringify(tempShortcuts)))
-
       const err = await api.syncSettings(JSON.stringify(buildConfigToSave(tempSettings, tempShortcuts)))
       if (err) {
         ui.showToast(err, 'error')
       } else {
         ui.showToast('设置已保存', 'success')
-        Object.assign(settings, tempSettings)
+        Object.assign(shortcuts, JSON.parse(JSON.stringify(tempShortcuts)))
+        Object.assign(settings, JSON.parse(JSON.stringify(tempSettings)))
+        keyboardStatus.value = await api.getKeyboardProtectionStatus()
         resetStatus()
-        closeSettings()
+        await closeSettings()
       }
     } catch (e) {
       console.error('保存设置失败', e)
@@ -312,8 +320,18 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
-  function openSettings() {
-    api.restoreFocus()
+  let openingSettings = false
+  async function openSettings() {
+    if (openingSettings || ui.showSettings) return
+    openingSettings = true
+    try {
+      await beginDialogEditing(inputEditing, api)
+    } catch (error) {
+      ui.showToast(error.message || '无法进入设置', 'warning')
+      return
+    } finally {
+      openingSettings = false
+    }
     Object.assign(tempSettings, JSON.parse(JSON.stringify(settings)))
     Object.assign(tempShortcuts, JSON.parse(JSON.stringify(shortcuts)))
     ui.connectionStatus = null
@@ -324,29 +342,71 @@ export const useSettingsStore = defineStore('settings', () => {
     ui.showSettings = true
   }
 
-  function closeSettings() {
+  async function closeSettings() {
     if (isResumeParsing.value) {
       ui.showToast('简历正在解析中，请稍候...', 'warning')
       return
     }
-    api.removeFocus()
+    if (stopRecorder) stopRecorder()
+    recordVersion++
+    try {
+      await endDialogEditing(inputEditing, api)
+    } catch (error) { ui.showToast(error.message || '恢复键盘模式失败，请重新检查', 'warning') }
     ui.showSettings = false
-    if (recordingAction.value) api.stopRecordingKey()
     recordingAction.value = null
     recordingText.value = ''
     resetTempSettings()
   }
 
   function resetTempSettings() {
-    Object.assign(tempSettings, settings)
+    Object.assign(tempSettings, JSON.parse(JSON.stringify(settings)))
     applyTransparency(1.0 - settings.transparency)
   }
 
-  function recordKey(action) {
-    if (isMacOS.value) return
+  async function recordKey(action) {
+    if (stopRecorder) stopRecorder()
+    const version = ++recordVersion
     recordingAction.value = action
-    recordingText.value = '请按键...'
-    api.startRecordingKey(action)
+    recordingText.value = '准备录制...'
+    try {
+      await inputEditing.reason('recording', true)
+    } catch (error) {
+      recordingAction.value = null
+      ui.showToast(error.message || '无法开始录制')
+      inputEditing.reason('recording', false).catch(() => {})
+      return
+    }
+    if (version !== recordVersion) return
+    recordingText.value = '请按组合键，松开后完成；Esc 取消'
+    const finish = (binding) => {
+      if (binding) tempShortcuts[action] = binding
+      recordingAction.value = null
+      recordingText.value = ''
+      if (stopRecorder) stopRecorder()
+    }
+    const recorder = createRecorder({ complete: finish, cancel: () => finish(null) })
+    const down = event => { event.preventDefault(); event.stopImmediatePropagation(); recorder.down(event.code); recordingText.value = recorder.label() }
+    const up = event => { event.preventDefault(); event.stopImmediatePropagation(); recorder.up(event.code) }
+    const cancel = () => recorder.cancel()
+    const mouseCode = event => ({ 3: 'MouseBack', 4: 'MouseForward' })[event.button]
+    const mouseDown = event => { const code = mouseCode(event); if (code) { event.preventDefault(); recorder.down(code) } }
+    const mouseUp = event => { const code = mouseCode(event); if (code) { event.preventDefault(); recorder.up(code) } }
+    document.addEventListener('keydown', down, true)
+    document.addEventListener('keyup', up, true)
+    window.addEventListener('blur', cancel)
+    document.addEventListener('mousedown', mouseDown, true)
+    document.addEventListener('mouseup', mouseUp, true)
+    stopRecorder = () => {
+      document.removeEventListener('keydown', down, true)
+      document.removeEventListener('keyup', up, true)
+      window.removeEventListener('blur', cancel)
+      document.removeEventListener('mousedown', mouseDown, true)
+      document.removeEventListener('mouseup', mouseUp, true)
+      recordingAction.value = null
+      stopRecorder = null
+      recordVersion++
+      inputEditing.reason('recording', false).catch(() => {})
+    }
   }
 
   async function selectResume() {
@@ -390,7 +450,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   return {
-    settings, tempSettings,
+    settings, tempSettings, keyboardStatus,
     shortcuts, tempShortcuts,
     domainCategories,
     resumeRawContent, isResumeParsing,

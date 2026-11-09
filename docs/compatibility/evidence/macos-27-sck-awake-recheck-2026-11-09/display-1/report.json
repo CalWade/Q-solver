@@ -1,0 +1,1787 @@
+{
+  "system": "Version 27.0 (Build 26A428)",
+  "webViewReady": true,
+  "observations": [
+    {
+      "stage": "shown",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 1,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "capture-first",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 0,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "capture-nested",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 0,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "secondary-during-capture",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 0,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "first-release",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 0,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "last-release",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 1,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "secondary-restored",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 1,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "recreated",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 1,
+      "foregroundUnchanged": true
+    }
+  ],
+  "checks": [
+    {
+      "name": "WKWebView loaded isolated local fixture",
+      "passed": true
+    },
+    {
+      "name": "unlocked graphical desktop available",
+      "passed": true
+    },
+    {
+      "name": "shown",
+      "passed": true
+    },
+    {
+      "name": "capture-first",
+      "passed": true
+    },
+    {
+      "name": "capture-nested",
+      "passed": true
+    },
+    {
+      "name": "secondary-during-capture",
+      "passed": true
+    },
+    {
+      "name": "first-release",
+      "passed": true
+    },
+    {
+      "name": "last-release",
+      "passed": true
+    },
+    {
+      "name": "secondary-restored",
+      "passed": true
+    },
+    {
+      "name": "recreated",
+      "passed": true
+    },
+    {
+      "name": "all lifecycle stages observed",
+      "passed": true
+    }
+  ],
+  "limitations": [
+    "显示器包含窗口过滤器只允许自建窗口，裁剪区域与窗口一致，采集前核对实际窗口归属及过滤器名单。",
+    "完整图像与 idle 通知分别计数，idle 保留上一张完整图像，按接收时间记录实际观察内容。",
+    "此项是仅含自建窗口的显示器过滤器证据，完整桌面与真实会议远端仍需验收。"
+  ],
+  "liveCapture": {
+    "api": "ScreenCaptureKit.SCStream / display+includingOwnedWindow",
+    "registeredWindows": 1,
+    "displaySelection": {
+      "expectedWindowID": 37077,
+      "actualWindowID": 37077,
+      "expectedOwnerPID": 72942,
+      "actualOwnerPID": 72942,
+      "expectedDisplayID": 1,
+      "actualDisplayID": 1,
+      "includedWindows": 1,
+      "includedDisplays": 1,
+      "windowRect": {
+        "x": 50,
+        "y": 732,
+        "width": 390,
+        "height": 170
+      },
+      "displayRect": {
+        "x": 0,
+        "y": 0,
+        "width": 1512,
+        "height": 982
+      },
+      "sourceRect": {
+        "x": 50,
+        "y": 732,
+        "width": 390,
+        "height": 170
+      }
+    },
+    "starts": 1,
+    "stops": 1,
+    "startedNanos": 211207290486000,
+    "stoppedNanos": 211213625884458,
+    "drainedNanos": 211213625891041,
+    "transitions": [
+      {
+        "stage": "baseline-before",
+        "appliedNanos": 211206922194708,
+        "propertySet": false,
+        "localVisible": true,
+        "alpha": 1
+      },
+      {
+        "stage": "sharing-none",
+        "appliedNanos": 211209393766125,
+        "propertySet": true,
+        "localVisible": true,
+        "alpha": 1
+      },
+      {
+        "stage": "baseline-after",
+        "appliedNanos": 211211495331208,
+        "propertySet": false,
+        "localVisible": true,
+        "alpha": 1
+      }
+    ],
+    "outputCount": 93,
+    "frameStatuses": {
+      "blank": 0,
+      "complete": 63,
+      "idle": 30,
+      "started": 0,
+      "stopped": 0,
+      "suspended": 0,
+      "unknown": 0
+    },
+    "frames": [
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211207297542708,
+        "displayNanos": 211207297542708,
+        "receivedNanos": 211207345939041,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-0.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46817496229260935,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211207389209250,
+        "displayNanos": 211207389209250,
+        "receivedNanos": 211207396620708,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-1.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211207464209125,
+        "displayNanos": 211207464209125,
+        "receivedNanos": 211207458841666,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-2.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211207530875833,
+        "displayNanos": 211207530875833,
+        "receivedNanos": 211207529902541,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-3.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.4684313725490196,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211207597542333,
+        "displayNanos": 211207597542333,
+        "receivedNanos": 211207600878791,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-4.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211207664209000,
+        "displayNanos": 211207664209000,
+        "receivedNanos": 211207664029666,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-5.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211207730875583,
+        "displayNanos": 211207730875583,
+        "receivedNanos": 211207730849583,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-6.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46815987933634995,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211207797542166,
+        "displayNanos": 211207797542166,
+        "receivedNanos": 211207797662875,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-7.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211207872542083,
+        "displayNanos": 211207872542083,
+        "receivedNanos": 211207867562958,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-8.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211207939208666,
+        "displayNanos": 211207939208666,
+        "receivedNanos": 211207938531458,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-9.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.4684313725490196,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208005875250,
+        "displayNanos": 211208005875250,
+        "receivedNanos": 211208003599166,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-10.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208072541875,
+        "displayNanos": 211208072541875,
+        "receivedNanos": 211208071245291,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-11.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208139208416,
+        "displayNanos": 211208139208416,
+        "receivedNanos": 211208138042958,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-12.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46815987933634995,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208205875041,
+        "displayNanos": 211208205875041,
+        "receivedNanos": 211208205238208,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-13.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208272541666,
+        "displayNanos": 211208272541666,
+        "receivedNanos": 211208272719958,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-14.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208339208208,
+        "displayNanos": 211208339208208,
+        "receivedNanos": 211208341822000,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-15.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.4684313725490196,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208414208125,
+        "displayNanos": 211208414208125,
+        "receivedNanos": 211208409200375,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-16.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208480874750,
+        "displayNanos": 211208480874750,
+        "receivedNanos": 211208476318708,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-17.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208547541291,
+        "displayNanos": 211208547541291,
+        "receivedNanos": 211208545284041,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-18.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46815987933634995,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208614207916,
+        "displayNanos": 211208614207916,
+        "receivedNanos": 211208612815583,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-19.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208680874500,
+        "displayNanos": 211208680874500,
+        "receivedNanos": 211208679795916,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-20.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208747541083,
+        "displayNanos": 211208747541083,
+        "receivedNanos": 211208746634416,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-21.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.4684313725490196,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208814207666,
+        "displayNanos": 211208814207666,
+        "receivedNanos": 211208814156791,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-22.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208880874291,
+        "displayNanos": 211208880874291,
+        "receivedNanos": 211208880850875,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-23.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211208947540833,
+        "displayNanos": 211208947540833,
+        "receivedNanos": 211208947530041,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-24.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46815987933634995,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211209014207416,
+        "displayNanos": 211209014207416,
+        "receivedNanos": 211209014532333,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-25.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211209089207375,
+        "displayNanos": 211209089207375,
+        "receivedNanos": 211209085154666,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-26.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211209155873958,
+        "displayNanos": 211209155873958,
+        "receivedNanos": 211209152814916,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-27.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.4684313725490196,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211209222540541,
+        "displayNanos": 211209222540541,
+        "receivedNanos": 211209219500208,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-28.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211209289207166,
+        "displayNanos": 211209289207166,
+        "receivedNanos": 211209287344291,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-29.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211209355873750,
+        "displayNanos": 211209355873750,
+        "receivedNanos": 211209354399833,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-30.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46815987933634995,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211209405873708,
+        "displayNanos": 211209405873708,
+        "receivedNanos": 211209421535041,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-31.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211211514204625,
+        "displayNanos": 211211514204625,
+        "receivedNanos": 211211513284333,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-32.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46828054298642535,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211211580871375,
+        "displayNanos": 211211580871375,
+        "receivedNanos": 211211580307666,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-33.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.4684313725490196,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211211647537916,
+        "displayNanos": 211211647537916,
+        "receivedNanos": 211211647267458,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-34.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211211714204416,
+        "displayNanos": 211211714204416,
+        "receivedNanos": 211211714482666,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-35.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46817496229260935,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211211780871125,
+        "displayNanos": 211211780871125,
+        "receivedNanos": 211211781205916,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-36.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46817496229260935,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211211847537708,
+        "displayNanos": 211211847537708,
+        "receivedNanos": 211211847758208,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-37.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211211914204375,
+        "displayNanos": 211211914204375,
+        "receivedNanos": 211211914769958,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-38.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46828054298642535,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211211980870833,
+        "displayNanos": 211211980870833,
+        "receivedNanos": 211211981106625,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-39.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.4682503770739065,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212055870833,
+        "displayNanos": 211212055870833,
+        "receivedNanos": 211212051563125,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-40.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212122537333,
+        "displayNanos": 211212122537333,
+        "receivedNanos": 211212119652875,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-41.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46817496229260935,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212189203916,
+        "displayNanos": 211212189203916,
+        "receivedNanos": 211212186294958,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-42.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212255870500,
+        "displayNanos": 211212255870500,
+        "receivedNanos": 211212253206333,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-43.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212322537083,
+        "displayNanos": 211212322537083,
+        "receivedNanos": 211212320672291,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-44.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.4684313725490196,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212397537125,
+        "displayNanos": 211212397537125,
+        "receivedNanos": 211212402682458,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-45.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212464203750,
+        "displayNanos": 211212464203750,
+        "receivedNanos": 211212495973083,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-46.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212530870333,
+        "displayNanos": 211212530870333,
+        "receivedNanos": 211212534522791,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-47.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46815987933634995,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212605870250,
+        "displayNanos": 211212605870250,
+        "receivedNanos": 211212600115541,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-48.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212672536750,
+        "displayNanos": 211212672536750,
+        "receivedNanos": 211212669955250,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-49.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212739203333,
+        "displayNanos": 211212739203333,
+        "receivedNanos": 211212737890750,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-50.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.4684313725490196,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212805869916,
+        "displayNanos": 211212805869916,
+        "receivedNanos": 211212804936291,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-51.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212872536625,
+        "displayNanos": 211212872536625,
+        "receivedNanos": 211212872316875,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-52.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211212939203083,
+        "displayNanos": 211212939203083,
+        "receivedNanos": 211212939993333,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-53.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46815987933634995,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211213014203125,
+        "displayNanos": 211213014203125,
+        "receivedNanos": 211213012367958,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-54.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211213080869750,
+        "displayNanos": 211213080869750,
+        "receivedNanos": 211213079176375,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-55.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211213147536291,
+        "displayNanos": 211213147536291,
+        "receivedNanos": 211213146549125,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-56.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.4684313725490196,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211213214202916,
+        "displayNanos": 211213214202916,
+        "receivedNanos": 211213213539666,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-57.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211213280869541,
+        "displayNanos": 211213280869541,
+        "receivedNanos": 211213280885916,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-58.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211213355869416,
+        "displayNanos": 211213355869416,
+        "receivedNanos": 211213351404791,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-59.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46815987933634995,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211213422536000,
+        "displayNanos": 211213422536000,
+        "receivedNanos": 211213421228958,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-60.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211213489202500,
+        "displayNanos": 211213489202500,
+        "receivedNanos": 211213489299750,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-61.png"
+      },
+      {
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46819004524886876,
+        "greenRatio": 0.4934841628959276,
+        "opaqueBlackRatio": 0.0014479638009049773,
+        "transparentRatio": 0,
+        "presentationNanos": 211213555869083,
+        "displayNanos": 211213555869083,
+        "receivedNanos": 211213556075083,
+        "rawColorRatio": 0.9995927601809955,
+        "file": "capture-display-62.png"
+      }
+    ],
+    "outputs": [
+      {
+        "status": "complete",
+        "frameIndex": 0,
+        "presentationNanos": 211207297542708,
+        "displayNanos": 211207297542708,
+        "receivedNanos": 211207345939041
+      },
+      {
+        "status": "complete",
+        "frameIndex": 1,
+        "presentationNanos": 211207389209250,
+        "displayNanos": 211207389209250,
+        "receivedNanos": 211207396620708
+      },
+      {
+        "status": "complete",
+        "frameIndex": 2,
+        "presentationNanos": 211207464209125,
+        "displayNanos": 211207464209125,
+        "receivedNanos": 211207458841666
+      },
+      {
+        "status": "complete",
+        "frameIndex": 3,
+        "presentationNanos": 211207530875833,
+        "displayNanos": 211207530875833,
+        "receivedNanos": 211207529902541
+      },
+      {
+        "status": "complete",
+        "frameIndex": 4,
+        "presentationNanos": 211207597542333,
+        "displayNanos": 211207597542333,
+        "receivedNanos": 211207600878791
+      },
+      {
+        "status": "complete",
+        "frameIndex": 5,
+        "presentationNanos": 211207664209000,
+        "displayNanos": 211207664209000,
+        "receivedNanos": 211207664029666
+      },
+      {
+        "status": "complete",
+        "frameIndex": 6,
+        "presentationNanos": 211207730875583,
+        "displayNanos": 211207730875583,
+        "receivedNanos": 211207730849583
+      },
+      {
+        "status": "complete",
+        "frameIndex": 7,
+        "presentationNanos": 211207797542166,
+        "displayNanos": 211207797542166,
+        "receivedNanos": 211207797662875
+      },
+      {
+        "status": "complete",
+        "frameIndex": 8,
+        "presentationNanos": 211207872542083,
+        "displayNanos": 211207872542083,
+        "receivedNanos": 211207867562958
+      },
+      {
+        "status": "complete",
+        "frameIndex": 9,
+        "presentationNanos": 211207939208666,
+        "displayNanos": 211207939208666,
+        "receivedNanos": 211207938531458
+      },
+      {
+        "status": "complete",
+        "frameIndex": 10,
+        "presentationNanos": 211208005875250,
+        "displayNanos": 211208005875250,
+        "receivedNanos": 211208003599166
+      },
+      {
+        "status": "complete",
+        "frameIndex": 11,
+        "presentationNanos": 211208072541875,
+        "displayNanos": 211208072541875,
+        "receivedNanos": 211208071245291
+      },
+      {
+        "status": "complete",
+        "frameIndex": 12,
+        "presentationNanos": 211208139208416,
+        "displayNanos": 211208139208416,
+        "receivedNanos": 211208138042958
+      },
+      {
+        "status": "complete",
+        "frameIndex": 13,
+        "presentationNanos": 211208205875041,
+        "displayNanos": 211208205875041,
+        "receivedNanos": 211208205238208
+      },
+      {
+        "status": "complete",
+        "frameIndex": 14,
+        "presentationNanos": 211208272541666,
+        "displayNanos": 211208272541666,
+        "receivedNanos": 211208272719958
+      },
+      {
+        "status": "complete",
+        "frameIndex": 15,
+        "presentationNanos": 211208339208208,
+        "displayNanos": 211208339208208,
+        "receivedNanos": 211208341822000
+      },
+      {
+        "status": "complete",
+        "frameIndex": 16,
+        "presentationNanos": 211208414208125,
+        "displayNanos": 211208414208125,
+        "receivedNanos": 211208409200375
+      },
+      {
+        "status": "complete",
+        "frameIndex": 17,
+        "presentationNanos": 211208480874750,
+        "displayNanos": 211208480874750,
+        "receivedNanos": 211208476318708
+      },
+      {
+        "status": "complete",
+        "frameIndex": 18,
+        "presentationNanos": 211208547541291,
+        "displayNanos": 211208547541291,
+        "receivedNanos": 211208545284041
+      },
+      {
+        "status": "complete",
+        "frameIndex": 19,
+        "presentationNanos": 211208614207916,
+        "displayNanos": 211208614207916,
+        "receivedNanos": 211208612815583
+      },
+      {
+        "status": "complete",
+        "frameIndex": 20,
+        "presentationNanos": 211208680874500,
+        "displayNanos": 211208680874500,
+        "receivedNanos": 211208679795916
+      },
+      {
+        "status": "complete",
+        "frameIndex": 21,
+        "presentationNanos": 211208747541083,
+        "displayNanos": 211208747541083,
+        "receivedNanos": 211208746634416
+      },
+      {
+        "status": "complete",
+        "frameIndex": 22,
+        "presentationNanos": 211208814207666,
+        "displayNanos": 211208814207666,
+        "receivedNanos": 211208814156791
+      },
+      {
+        "status": "complete",
+        "frameIndex": 23,
+        "presentationNanos": 211208880874291,
+        "displayNanos": 211208880874291,
+        "receivedNanos": 211208880850875
+      },
+      {
+        "status": "complete",
+        "frameIndex": 24,
+        "presentationNanos": 211208947540833,
+        "displayNanos": 211208947540833,
+        "receivedNanos": 211208947530041
+      },
+      {
+        "status": "complete",
+        "frameIndex": 25,
+        "presentationNanos": 211209014207416,
+        "displayNanos": 211209014207416,
+        "receivedNanos": 211209014532333
+      },
+      {
+        "status": "complete",
+        "frameIndex": 26,
+        "presentationNanos": 211209089207375,
+        "displayNanos": 211209089207375,
+        "receivedNanos": 211209085154666
+      },
+      {
+        "status": "complete",
+        "frameIndex": 27,
+        "presentationNanos": 211209155873958,
+        "displayNanos": 211209155873958,
+        "receivedNanos": 211209152814916
+      },
+      {
+        "status": "complete",
+        "frameIndex": 28,
+        "presentationNanos": 211209222540541,
+        "displayNanos": 211209222540541,
+        "receivedNanos": 211209219500208
+      },
+      {
+        "status": "complete",
+        "frameIndex": 29,
+        "presentationNanos": 211209289207166,
+        "displayNanos": 211209289207166,
+        "receivedNanos": 211209287344291
+      },
+      {
+        "status": "complete",
+        "frameIndex": 30,
+        "presentationNanos": 211209355873750,
+        "displayNanos": 211209355873750,
+        "receivedNanos": 211209354399833
+      },
+      {
+        "status": "complete",
+        "frameIndex": 31,
+        "presentationNanos": 211209405873708,
+        "displayNanos": 211209405873708,
+        "receivedNanos": 211209421535041
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211209480873666,
+        "displayNanos": 211209480873666,
+        "receivedNanos": 211209488781958
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211209555873500,
+        "displayNanos": 211209555873500,
+        "receivedNanos": 211209555706083
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211209622540125,
+        "displayNanos": 211209622540125,
+        "receivedNanos": 211209624758041
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211209689206708,
+        "displayNanos": 211209689206708,
+        "receivedNanos": 211209691659166
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211209755873291,
+        "displayNanos": 211209755873291,
+        "receivedNanos": 211209764901333
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211209822539958,
+        "displayNanos": 211209822539958,
+        "receivedNanos": 211209827890250
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211209889206541,
+        "displayNanos": 211209889206541,
+        "receivedNanos": 211209895445166
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211209955873041,
+        "displayNanos": 211209955873041,
+        "receivedNanos": 211209962257166
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210022539708,
+        "displayNanos": 211210022539708,
+        "receivedNanos": 211210029894541
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210097539625,
+        "displayNanos": 211210097539625,
+        "receivedNanos": 211210097406791
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210164206166,
+        "displayNanos": 211210164206166,
+        "receivedNanos": 211210164134791
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210230872791,
+        "displayNanos": 211210230872791,
+        "receivedNanos": 211210230801500
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210297539375,
+        "displayNanos": 211210297539375,
+        "receivedNanos": 211210297810500
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210364205958,
+        "displayNanos": 211210364205958,
+        "receivedNanos": 211210368667333
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210430872541,
+        "displayNanos": 211210430872541,
+        "receivedNanos": 211210436224166
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210497539166,
+        "displayNanos": 211210497539166,
+        "receivedNanos": 211210503024500
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210564205708,
+        "displayNanos": 211210564205708,
+        "receivedNanos": 211210570125500
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210630872458,
+        "displayNanos": 211210630872458,
+        "receivedNanos": 211210637059916
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210697539000,
+        "displayNanos": 211210697539000,
+        "receivedNanos": 211210704614708
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210764205583,
+        "displayNanos": 211210764205583,
+        "receivedNanos": 211210771523291
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210839205416,
+        "displayNanos": 211210839205416,
+        "receivedNanos": 211210839118958
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210905872125,
+        "displayNanos": 211210905872125,
+        "receivedNanos": 211210905716958
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211210972538750,
+        "displayNanos": 211210972538750,
+        "receivedNanos": 211210972369416
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211211039205208,
+        "displayNanos": 211211039205208,
+        "receivedNanos": 211211039135666
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211211105871791,
+        "displayNanos": 211211105871791,
+        "receivedNanos": 211211108428583
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211211172538375,
+        "displayNanos": 211211172538375,
+        "receivedNanos": 211211175194500
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211211239205125,
+        "displayNanos": 211211239205125,
+        "receivedNanos": 211211242085500
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211211305871541,
+        "displayNanos": 211211305871541,
+        "receivedNanos": 211211309319250
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211211372538166,
+        "displayNanos": 211211372538166,
+        "receivedNanos": 211211376034625
+      },
+      {
+        "status": "idle",
+        "frameIndex": 31,
+        "presentationNanos": 211211439204875,
+        "displayNanos": 211211439204875,
+        "receivedNanos": 211211443011791
+      },
+      {
+        "status": "complete",
+        "frameIndex": 32,
+        "presentationNanos": 211211514204625,
+        "displayNanos": 211211514204625,
+        "receivedNanos": 211211513284333
+      },
+      {
+        "status": "complete",
+        "frameIndex": 33,
+        "presentationNanos": 211211580871375,
+        "displayNanos": 211211580871375,
+        "receivedNanos": 211211580307666
+      },
+      {
+        "status": "complete",
+        "frameIndex": 34,
+        "presentationNanos": 211211647537916,
+        "displayNanos": 211211647537916,
+        "receivedNanos": 211211647267458
+      },
+      {
+        "status": "complete",
+        "frameIndex": 35,
+        "presentationNanos": 211211714204416,
+        "displayNanos": 211211714204416,
+        "receivedNanos": 211211714482666
+      },
+      {
+        "status": "complete",
+        "frameIndex": 36,
+        "presentationNanos": 211211780871125,
+        "displayNanos": 211211780871125,
+        "receivedNanos": 211211781205916
+      },
+      {
+        "status": "complete",
+        "frameIndex": 37,
+        "presentationNanos": 211211847537708,
+        "displayNanos": 211211847537708,
+        "receivedNanos": 211211847758208
+      },
+      {
+        "status": "complete",
+        "frameIndex": 38,
+        "presentationNanos": 211211914204375,
+        "displayNanos": 211211914204375,
+        "receivedNanos": 211211914769958
+      },
+      {
+        "status": "complete",
+        "frameIndex": 39,
+        "presentationNanos": 211211980870833,
+        "displayNanos": 211211980870833,
+        "receivedNanos": 211211981106625
+      },
+      {
+        "status": "complete",
+        "frameIndex": 40,
+        "presentationNanos": 211212055870833,
+        "displayNanos": 211212055870833,
+        "receivedNanos": 211212051563125
+      },
+      {
+        "status": "complete",
+        "frameIndex": 41,
+        "presentationNanos": 211212122537333,
+        "displayNanos": 211212122537333,
+        "receivedNanos": 211212119652875
+      },
+      {
+        "status": "complete",
+        "frameIndex": 42,
+        "presentationNanos": 211212189203916,
+        "displayNanos": 211212189203916,
+        "receivedNanos": 211212186294958
+      },
+      {
+        "status": "complete",
+        "frameIndex": 43,
+        "presentationNanos": 211212255870500,
+        "displayNanos": 211212255870500,
+        "receivedNanos": 211212253206333
+      },
+      {
+        "status": "complete",
+        "frameIndex": 44,
+        "presentationNanos": 211212322537083,
+        "displayNanos": 211212322537083,
+        "receivedNanos": 211212320672291
+      },
+      {
+        "status": "complete",
+        "frameIndex": 45,
+        "presentationNanos": 211212397537125,
+        "displayNanos": 211212397537125,
+        "receivedNanos": 211212402682458
+      },
+      {
+        "status": "complete",
+        "frameIndex": 46,
+        "presentationNanos": 211212464203750,
+        "displayNanos": 211212464203750,
+        "receivedNanos": 211212495973083
+      },
+      {
+        "status": "complete",
+        "frameIndex": 47,
+        "presentationNanos": 211212530870333,
+        "displayNanos": 211212530870333,
+        "receivedNanos": 211212534522791
+      },
+      {
+        "status": "complete",
+        "frameIndex": 48,
+        "presentationNanos": 211212605870250,
+        "displayNanos": 211212605870250,
+        "receivedNanos": 211212600115541
+      },
+      {
+        "status": "complete",
+        "frameIndex": 49,
+        "presentationNanos": 211212672536750,
+        "displayNanos": 211212672536750,
+        "receivedNanos": 211212669955250
+      },
+      {
+        "status": "complete",
+        "frameIndex": 50,
+        "presentationNanos": 211212739203333,
+        "displayNanos": 211212739203333,
+        "receivedNanos": 211212737890750
+      },
+      {
+        "status": "complete",
+        "frameIndex": 51,
+        "presentationNanos": 211212805869916,
+        "displayNanos": 211212805869916,
+        "receivedNanos": 211212804936291
+      },
+      {
+        "status": "complete",
+        "frameIndex": 52,
+        "presentationNanos": 211212872536625,
+        "displayNanos": 211212872536625,
+        "receivedNanos": 211212872316875
+      },
+      {
+        "status": "complete",
+        "frameIndex": 53,
+        "presentationNanos": 211212939203083,
+        "displayNanos": 211212939203083,
+        "receivedNanos": 211212939993333
+      },
+      {
+        "status": "complete",
+        "frameIndex": 54,
+        "presentationNanos": 211213014203125,
+        "displayNanos": 211213014203125,
+        "receivedNanos": 211213012367958
+      },
+      {
+        "status": "complete",
+        "frameIndex": 55,
+        "presentationNanos": 211213080869750,
+        "displayNanos": 211213080869750,
+        "receivedNanos": 211213079176375
+      },
+      {
+        "status": "complete",
+        "frameIndex": 56,
+        "presentationNanos": 211213147536291,
+        "displayNanos": 211213147536291,
+        "receivedNanos": 211213146549125
+      },
+      {
+        "status": "complete",
+        "frameIndex": 57,
+        "presentationNanos": 211213214202916,
+        "displayNanos": 211213214202916,
+        "receivedNanos": 211213213539666
+      },
+      {
+        "status": "complete",
+        "frameIndex": 58,
+        "presentationNanos": 211213280869541,
+        "displayNanos": 211213280869541,
+        "receivedNanos": 211213280885916
+      },
+      {
+        "status": "complete",
+        "frameIndex": 59,
+        "presentationNanos": 211213355869416,
+        "displayNanos": 211213355869416,
+        "receivedNanos": 211213351404791
+      },
+      {
+        "status": "complete",
+        "frameIndex": 60,
+        "presentationNanos": 211213422536000,
+        "displayNanos": 211213422536000,
+        "receivedNanos": 211213421228958
+      },
+      {
+        "status": "complete",
+        "frameIndex": 61,
+        "presentationNanos": 211213489202500,
+        "displayNanos": 211213489202500,
+        "receivedNanos": 211213489299750
+      },
+      {
+        "status": "complete",
+        "frameIndex": 62,
+        "presentationNanos": 211213555869083,
+        "displayNanos": 211213555869083,
+        "receivedNanos": 211213556075083
+      }
+    ],
+    "startupFrames": 0,
+    "phases": [
+      {
+        "stage": "baseline-before",
+        "frames": 31,
+        "outputs": 31,
+        "outcomes": {
+          "visible": 31
+        },
+        "firstVisibleMillis": 423.744333,
+        "lastVisibleMillis": 2432.205125
+      },
+      {
+        "stage": "sharing-none",
+        "frames": 1,
+        "outputs": 31,
+        "idleOutputs": 30,
+        "outcomes": {
+          "visible": 31
+        },
+        "firstVisibleMillis": 27.768916,
+        "lastVisibleMillis": 2049.245666
+      },
+      {
+        "stage": "baseline-after",
+        "frames": 31,
+        "outputs": 31,
+        "outcomes": {
+          "visible": 31
+        },
+        "firstVisibleMillis": 17.953125,
+        "lastVisibleMillis": 2060.743875
+      }
+    ],
+    "completed": true,
+    "protectedWindowOutcome": "visible",
+    "checks": [
+      {
+        "name": "single registered window during live capture",
+        "passed": true
+      },
+      {
+        "name": "one stream started and stopped",
+        "passed": true
+      },
+      {
+        "name": "every complete output recorded",
+        "passed": true
+      },
+      {
+        "name": "display filter includes only the owned window with an exact crop",
+        "passed": true
+      },
+      {
+        "name": "three ordered policy acknowledgements with local window visible",
+        "passed": true
+      },
+      {
+        "name": "complete images have valid pixels and ordered media timestamps",
+        "passed": true
+      },
+      {
+        "name": "every SDK output records its complete image or retained idle image",
+        "passed": true
+      },
+      {
+        "name": "baseline-before has continuous observed output and valid controls",
+        "passed": true
+      },
+      {
+        "name": "sharing-none has continuous observed output and valid controls",
+        "passed": true
+      },
+      {
+        "name": "baseline-after has continuous observed output and valid controls",
+        "passed": true
+      },
+      {
+        "name": "live comparison has an interpretable protected outcome",
+        "passed": true
+      }
+    ]
+  },
+  "environment": {
+    "sessionKnown": true,
+    "sessionLocked": false,
+    "onConsole": true,
+    "displaysKnown": true,
+    "activeDisplays": 1,
+    "mainDisplayAsleep": false
+  }
+}

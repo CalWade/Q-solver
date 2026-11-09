@@ -27,7 +27,8 @@ export const useUIStore = defineStore('ui', () => {
 
   const isClickThrough = ref(false)
   const mainVisible = ref(true)
-  const isStealthMode = ref(true)
+  const isStealthMode = ref(false)
+  const windowStatus = ref({ desired: {}, windows: [], captures: 0 })
   const hasStarted = ref(false)
 
   const showSettings = ref(false)
@@ -47,7 +48,7 @@ export const useUIStore = defineStore('ui', () => {
   return {
     toasts, showToast,
     activeButtons, flash,
-    isClickThrough, mainVisible, isStealthMode, hasStarted,
+    isClickThrough, mainVisible, isStealthMode, hasStarted, windowStatus,
     showSettings, activeTab, availableModels, isLoadingModels,
     isTestingConnection, connectionStatus,
     initStatus, showResumeWarning,

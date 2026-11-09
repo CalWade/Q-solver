@@ -4,6 +4,7 @@ package platform
 
 import (
 	"Q-Solver/pkg/logger"
+	"errors"
 	"os"
 	"syscall"
 	"unsafe"
@@ -14,25 +15,29 @@ var (
 	kernel32 = syscall.NewLazyDLL("kernel32.dll")
 	ntdll    = syscall.NewLazyDLL("ntdll.dll")
 
-	procFindWindowW                    = user32.NewProc("FindWindowW")
-	procSetWindowDisplayAffinity       = user32.NewProc("SetWindowDisplayAffinity")
-	procGetWindowLongW                 = user32.NewProc("GetWindowLongW")
-	procSetWindowLongW                 = user32.NewProc("SetWindowLongW")
-	procRegisterHotKey                 = user32.NewProc("RegisterHotKey")
-	procUnregisterHotKey               = user32.NewProc("UnregisterHotKey")
-	procGetMessageW                    = user32.NewProc("GetMessageW")
-	procSetWindowsHookExW              = user32.NewProc("SetWindowsHookExW")
-	procUnhookWindowsHookEx            = user32.NewProc("UnhookWindowsHookEx")
-	procCallNextHookEx                 = user32.NewProc("CallNextHookEx")
-	procGetModuleHandleW               = kernel32.NewProc("GetModuleHandleW")
-	procSetWindowPos                   = user32.NewProc("SetWindowPos")
-	procSetLayeredWindowAttributes     = user32.NewProc("SetLayeredWindowAttributes")
-	procGetAsyncKeyState               = user32.NewProc("GetAsyncKeyState")
-	procEnumWindows                    = user32.NewProc("EnumWindows")
-	procGetWindowThreadProcessId       = user32.NewProc("GetWindowThreadProcessId")
-	procKeybdEvent                     = user32.NewProc("keybd_event")
-	procSetWindowCompositionAttribute  = user32.NewProc("SetWindowCompositionAttribute")
-	procRtlGetVersion                  = ntdll.NewProc("RtlGetVersion")
+	procFindWindowW                   = user32.NewProc("FindWindowW")
+	procSetWindowDisplayAffinity      = user32.NewProc("SetWindowDisplayAffinity")
+	procGetWindowLongW                = user32.NewProc("GetWindowLongW")
+	procSetWindowLongW                = user32.NewProc("SetWindowLongW")
+	procRegisterHotKey                = user32.NewProc("RegisterHotKey")
+	procUnregisterHotKey              = user32.NewProc("UnregisterHotKey")
+	procGetMessageW                   = user32.NewProc("GetMessageW")
+	procSetWindowsHookExW             = user32.NewProc("SetWindowsHookExW")
+	procUnhookWindowsHookEx           = user32.NewProc("UnhookWindowsHookEx")
+	procCallNextHookEx                = user32.NewProc("CallNextHookEx")
+	procGetModuleHandleW              = kernel32.NewProc("GetModuleHandleW")
+	procSetWindowPos                  = user32.NewProc("SetWindowPos")
+	procSetLayeredWindowAttributes    = user32.NewProc("SetLayeredWindowAttributes")
+	procGetAsyncKeyState              = user32.NewProc("GetAsyncKeyState")
+	procEnumWindows                   = user32.NewProc("EnumWindows")
+	procGetWindowThreadProcessId      = user32.NewProc("GetWindowThreadProcessId")
+	procKeybdEvent                    = user32.NewProc("keybd_event")
+	procSetWindowCompositionAttribute = user32.NewProc("SetWindowCompositionAttribute")
+	procRtlGetVersion                 = ntdll.NewProc("RtlGetVersion")
+	procIsWindow                      = user32.NewProc("IsWindow")
+	procIsWindowVisible               = user32.NewProc("IsWindowVisible")
+	procShowWindow                    = user32.NewProc("ShowWindow")
+	procGetClassName                  = user32.NewProc("GetClassNameW")
 )
 
 // WindowHandle 窗口句柄类型（Windows 为 HWND）
@@ -40,8 +45,8 @@ type WindowHandle uintptr
 
 // 窗口级别常量
 const (
-	WindowLevelNormal   = 0 // 正常窗口级别（Windows 不使用）
-	WindowLevelFloating = 3 // 置顶窗口级别（Windows 不使用）
+	WindowLevelNormal   = 0 // 非置顶
+	WindowLevelFloating = 3 // 置顶
 )
 
 // Windows 窗口和样式常量
@@ -197,9 +202,16 @@ func GetWindowHandle() (WindowHandle, error) {
 	return WindowHandle(hwnd), err
 }
 
-// ApplyGhostMode 应用幽灵模式（无边框、置顶、防录屏、不抢焦点）
+// ApplyGhostMode 初始化无边框、工具窗口和非激活样式。捕获属性在注册时应用。
 func ApplyGhostMode(hwnd WindowHandle) error {
-	applyGhostMode(uintptr(hwnd))
+	if err := windowsWindowState.Ghost(uintptr(hwnd)); err != nil {
+		return err
+	}
+	if !isWindows11OrLater() {
+		if err := enableTransparentGradient(uintptr(hwnd)); err != nil {
+			logger.Printf("[GhostMode] 透明背景增强未生效: %v", err)
+		}
+	}
 	return nil
 }
 
@@ -210,23 +222,33 @@ func SetClickThrough(hwnd WindowHandle, enabled bool) error {
 
 // SetDisplayAffinity 设置防录屏状态
 func SetDisplayAffinity(hwnd WindowHandle, hidden bool) error {
-	affinity := WDA_NONE
-	if hidden {
-		affinity = WDA_EXCLUDEFROMCAPTURE
+	_, err := ApplyCaptureProtection(hwnd, hidden)
+	return err
+}
+
+func ApplyCaptureProtection(hwnd WindowHandle, hidden bool) (string, error) {
+	var version RTL_OSVERSIONINFOW
+	version.dwOSVersionInfoSize = uint32(unsafe.Sizeof(version))
+	if status, _, _ := procRtlGetVersion.Call(uintptr(unsafe.Pointer(&version))); status != 0 {
+		version.dwBuildNumber = 0
 	}
-	return setWindowDisplayAffinity(uintptr(hwnd), uint32(affinity))
+	return windowsWindowState.Capture(uintptr(hwnd), version.dwBuildNumber, hidden)
+}
+func SetVisibleWithoutActivation(hwnd WindowHandle, visible bool) error {
+	return windowsWindowState.Visible(uintptr(hwnd), visible)
+}
+func SetCaptureSuppressed(hwnd WindowHandle, suppressed bool) error {
+	return windowsWindowState.Suppress(uintptr(hwnd), suppressed)
 }
 
 // RestoreFocus 恢复焦点
 func RestoreFocus(hwnd WindowHandle) error {
-	restoreFocus(uintptr(hwnd))
-	return nil
+	return windowsWindowState.EnterEditing(uintptr(hwnd))
 }
 
 // RemoveFocus 移除焦点
 func RemoveFocus(hwnd WindowHandle) error {
-	removeFocus(uintptr(hwnd))
-	return nil
+	return windowsWindowState.ExitEditing(uintptr(hwnd))
 }
 
 // CheckScreenCaptureAccess 检查截图权限 (Windows 直接返回 true)
@@ -244,10 +266,9 @@ func OpenScreenCaptureSettings() {
 	// Windows 不需要截图权限，无操作
 }
 
-// SetWindowLevel 设置窗口层级 (Windows 在 ApplyGhostMode 中处理)
+// SetWindowLevel 更新窗口层级并保持当前焦点。
 func SetWindowLevel(hwnd WindowHandle, level int) error {
-	// Windows 使用不同的置顶机制，在 ApplyGhostMode 中处理
-	return nil
+	return windowsWindowState.Topmost(uintptr(hwnd), level == WindowLevelFloating)
 }
 
 // CheckMicrophoneAccess 检查麦克风权限状态 (Windows 直接返回已授权)
@@ -353,49 +374,14 @@ func FindWindow(className, windowName string) uintptr {
 	return ret
 }
 
-// setWindowDisplayAffinity 设置窗口防录屏
-func setWindowDisplayAffinity(hwnd uintptr, affinity uint32) error {
-	ret, _, err := procSetWindowDisplayAffinity.Call(
-		hwnd,
-		uintptr(affinity),
-	)
-	if ret == 0 {
-		return err
-	}
-	return nil
-}
-
 // SetWindowToolWindow 设置为工具窗口（隐藏任务栏）
 func SetWindowToolWindow(hwnd uintptr) error {
-	nIndex := int32(GWL_EXSTYLE)
-	// 获取当前扩展样式
-	style, _, _ := procGetWindowLongW.Call(hwnd, uintptr(nIndex))
-
-	// 添加 WS_EX_TOOLWINDOW 并移除 WS_EX_APPWINDOW
-	newStyle := (style | WS_EX_TOOLWINDOW) &^ WS_EX_APPWINDOW
-
-	ret, _, err := procSetWindowLongW.Call(hwnd, uintptr(nIndex), newStyle)
-	if ret == 0 {
-		return err
-	}
-	return nil
+	return windowsWindowState.ToolWindow(hwnd)
 }
 
 // setWindowClickThrough 设置鼠标穿透
 func setWindowClickThrough(hwnd uintptr, enabled bool) error {
-	nIndex := int32(GWL_EXSTYLE)
-	style, _, _ := procGetWindowLongW.Call(hwnd, uintptr(nIndex))
-	var newStyle uintptr
-	if enabled {
-		newStyle = style | WS_EX_TRANSPARENT | WS_EX_LAYERED
-	} else {
-		newStyle = style &^ WS_EX_TRANSPARENT
-	}
-	ret, _, err := procSetWindowLongW.Call(hwnd, uintptr(nIndex), newStyle)
-	if ret == 0 {
-		return err
-	}
-	return nil
+	return windowsWindowState.ClickThrough(hwnd, enabled)
 }
 
 // SetWindowPos 设置窗口位置
@@ -440,7 +426,7 @@ func SetLayeredWindowAttributes(hwnd uintptr, crKey uint32, bAlpha byte, dwFlags
 		uintptr(dwFlags),
 	)
 	if ret == 0 {
-		return err
+		return windowsCallFailure("设置分层窗口属性", err)
 	}
 	return nil
 }
@@ -458,6 +444,11 @@ func getHwndByPid(pid uint32) (uintptr, error) {
 		var pId uint32
 		procGetWindowThreadProcessId.Call(h, uintptr(unsafe.Pointer(&pId)))
 		if pId == pid {
+			var className [256]uint16
+			procGetClassName.Call(h, uintptr(unsafe.Pointer(&className[0])), uintptr(len(className)))
+			if syscall.UTF16ToString(className[:]) != "wailsWindow" {
+				return 1
+			}
 			hwnd = h
 			return 0 // Stop enumeration
 		}
@@ -465,7 +456,7 @@ func getHwndByPid(pid uint32) (uintptr, error) {
 	})
 	procEnumWindows.Call(cb, 0)
 	if hwnd == 0 {
-		return 0, syscall.Errno(0)
+		return 0, errors.New("当前进程主窗口尚未创建")
 	}
 	return hwnd, nil
 }
@@ -483,7 +474,7 @@ func isWindows11OrLater() bool {
 
 // enableTransparentGradient 在 Win10 上使用 SetWindowCompositionAttribute
 // 覆盖 DWM 的模糊效果，实现无模糊的真透明背景
-func enableTransparentGradient(hwnd uintptr) {
+func enableTransparentGradient(hwnd uintptr) error {
 	accent := ACCENT_POLICY{
 		AccentState:   ACCENT_ENABLE_TRANSPARENTGRADIENT,
 		AccentFlags:   2,
@@ -495,67 +486,13 @@ func enableTransparentGradient(hwnd uintptr) {
 		Data:       unsafe.Pointer(&accent),
 		SizeOfData: unsafe.Sizeof(accent),
 	}
-	procSetWindowCompositionAttribute.Call(hwnd, uintptr(unsafe.Pointer(&data)))
-}
-
-// applyGhostMode 应用幽灵模式
-func applyGhostMode(hwnd uintptr) {
-	style := GetWindowLong(hwnd, int(GWL_STYLE))
-	// 移除 标题栏 | 调大小边框 | 最小化 | 最大化 | 系统菜单
-	newStyle := style &^ (WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU)
-	SetWindowLong(hwnd, int(GWL_STYLE), int32(newStyle))
-
-	exStyle := GetWindowLong(hwnd, int(GWL_EXSTYLE))
-
-	//TOOLWINDOW (隐藏任务栏) | NOACTIVATE (不抢焦点) | TOPMOST (置顶)
-	newExStyle := (exStyle &^ WS_EX_APPWINDOW) | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST
-	SetWindowLong(hwnd, int(GWL_EXSTYLE), int32(newExStyle))
-
-	// 优先尝试"隐身(透明)"，如果失败降级为"黑屏"
-	err := setWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
-	if err != nil {
-		// 如果系统不支持透明(如Win7/旧Win10)，降级为黑屏模式
-		setWindowDisplayAffinity(hwnd, WDA_MONITOR)
-		logger.Println("[GhostMode] 降级为黑屏防御模式")
-	} else {
-		logger.Println("[GhostMode] 隐身防御模式已开启")
+	if err := procSetWindowCompositionAttribute.Find(); err != nil {
+		return err
 	}
-
-	// 必须带上 SWP_FRAMECHANGED 让去边框生效
-	// 必须带上 SWP_NOACTIVATE 防止刷新时抢走焦点
-	SetWindowPos(hwnd, 0, 0, 0, 0, 0,
-		uint32(SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_FRAMECHANGED|SWP_NOACTIVATE))
-
-	// Win10 上 WindowIsTranslucent 会触发 DWM 模糊效果，
-	// 用 SetWindowCompositionAttribute 覆盖为透明渐变，消除模糊
-	if !isWindows11OrLater() {
-		enableTransparentGradient(hwnd)
-		logger.Println("[GhostMode] Win10 透明渐变模式已启用（消除 DWM 模糊）")
+	if ok, _, err := procSetWindowCompositionAttribute.Call(hwnd, uintptr(unsafe.Pointer(&data))); ok == 0 {
+		return windowsCallFailure("设置透明背景增强", err)
 	}
-}
-
-// restoreFocus 恢复焦点
-func restoreFocus(hwnd uintptr) {
-	exStyle := GetWindowLong(hwnd, int(GWL_EXSTYLE))
-	// 移除 WS_EX_NOACTIVATE 以允许获取焦点
-	newExStyle := exStyle &^ WS_EX_NOACTIVATE
-	SetWindowLong(hwnd, int(GWL_EXSTYLE), int32(newExStyle))
-
-	// 刷新窗口样式，不带 SWP_NOACTIVATE 以允许激活
-	SetWindowPos(hwnd, 0, 0, 0, 0, 0,
-		uint32(SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_FRAMECHANGED))
-}
-
-// removeFocus 移除焦点
-func removeFocus(hwnd uintptr) {
-	exStyle := GetWindowLong(hwnd, int(GWL_EXSTYLE))
-	// 添加 WS_EX_NOACTIVATE 以防止抢焦点
-	newExStyle := exStyle | WS_EX_NOACTIVATE
-	SetWindowLong(hwnd, int(GWL_EXSTYLE), int32(newExStyle))
-
-	// 刷新窗口样式
-	SetWindowPos(hwnd, 0, 0, 0, 0, 0,
-		uint32(SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_FRAMECHANGED|SWP_NOACTIVATE))
+	return nil
 }
 
 // KeybdEvent 模拟键盘事件

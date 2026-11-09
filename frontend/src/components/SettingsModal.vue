@@ -14,22 +14,25 @@
           <div class="tab" :class="{ active: ui.activeTab === 'resume' }" @click="ui.activeTab = 'resume'">简历</div>
           <div class="tab" :class="{ active: ui.activeTab === 'api' }" @click="ui.activeTab = 'api'">API</div>
         </div>
-        <button class="close-btn" @click="settingsStore.closeSettings">
+        <button class="close-btn" aria-label="关闭设置" @click="settingsStore.closeSettings">
           <Icon name="x" :size="16" />
         </button>
       </div>
 
       <div class="modal-body">
         <div v-show="ui.activeTab === 'general'" class="tab-pane">
+          <KeyboardProtectionSettings />
+          <WindowSettings />
           <div class="form-group">
-            <label>快捷键配置 {{ settingsStore.isMacOS ? '(macOS 使用固定快捷键)' : '(点击录制)' }}</label>
+            <label>快捷键配置（点击录制，保存后生效）</label>
             <div class="shortcut-list">
               <div class="shortcut-item" v-for="key in settingsStore.shortcutActions" :key="key.action">
                 <span>{{ key.label }}</span>
                 <button
                   class="btn-record"
-                  :class="{ recording: settingsStore.recordingAction === key.action, disabled: settingsStore.isMacOS }"
-                  @click="!settingsStore.isMacOS && settingsStore.recordKey(key.action)"
+                  :class="{ recording: settingsStore.recordingAction === key.action }"
+                  :aria-label="`录制${key.label}快捷键`"
+                  @click="settingsStore.recordKey(key.action)"
                 >
                   {{
                     settingsStore.recordingAction === key.action
@@ -156,6 +159,8 @@ import ProviderSelect from './ProviderSelect.vue'
 import ModelSelect from './ModelSelect.vue'
 import DomainSelector from './DomainSelector.vue'
 import ScreenshotSettings from './ScreenshotSettings.vue'
+import KeyboardProtectionSettings from './KeyboardProtectionSettings.vue'
+import WindowSettings from './WindowSettings.vue'
 import Icon from './Icon.vue'
 
 const ui = useUIStore()

@@ -33,6 +33,16 @@ import {
 import { Quit } from '../../wailsjs/runtime/runtime'
 
 export const api = {
+
+  getWindowStatus: () => window.go.app.App.GetWindowStatus(),
+  setCaptureProtection: enabled => window.go.app.App.SetCaptureProtection(enabled),
+  retryWindowPolicy: () => window.go.app.App.RetryWindowPolicy(),
+
+  getKeyboardProtectionStatus: () => window.go.app.App.GetKeyboardProtectionStatus(),
+  setInputEditing: (editing) => window.go.app.App.SetInputEditing(editing),
+  requestKeyboardPermission: () => window.go.app.App.RequestKeyboardPermission(),
+  retryKeyboardService: () => window.go.app.App.RetryKeyboardService(),
+  getProtectionShortcutPreset: () => window.go.app.App.GetProtectionShortcutPreset(),
   getSettings: () => GetSettings(),
   syncSettings: (json) => UpdateSettings(json),
   updateSettings: (json) => UpdateSettings(json),
@@ -46,6 +56,8 @@ export const api = {
   removeScreenshot: (index) => RemoveScreenshot(index),
   clearScreenshots: () => ClearScreenshots(),
   cancelTask: () => CancelRunningTask(),
+  cancelRequest: id => window.go.app.App.CancelRequest(id),
+  getWorkflowStatus: () => window.go.app.App.GetWorkflowStatus(),
 
   startRecordingKey: (action) => StartRecordingKey(action),
   stopRecordingKey: () => StopRecordingKey(),
@@ -54,11 +66,11 @@ export const api = {
   clearResume: () => ClearResume(),
   parseResume: () => ParseResume(),
 
-  restoreFocus: () => RestoreFocus(),
-  removeFocus: () => RemoveFocus(),
+  restoreFocus: async () => { const error = await RestoreFocus(); if (error) throw new Error(error) },
+  removeFocus: async () => { const error = await RemoveFocus(); if (error) throw new Error(error) },
   moveWindow: (x, y) => MoveWindow(x, y),
   scrollContent: (dir) => ScrollContent(dir),
-  setAlwaysOnTop: (v) => SetWindowAlwaysOnTop(v),
+  setAlwaysOnTop: async (v) => { const error = await SetWindowAlwaysOnTop(v); if (error) throw new Error(error) },
   toggleVisibility: () => ToggleVisibility(),
   toggleClickThrough: () => ToggleClickThrough(),
   quit: () => Quit(),

@@ -1,5 +1,151 @@
+export namespace app {
+
+	export class WindowStatus {
+	    desired: domain.Policy;
+	    windows: domain.Window[];
+	    captures: number;
+
+	    static createFrom(source: any = {}) {
+	        return new WindowStatus(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.desired = this.convertValues(source["desired"], domain.Policy);
+	        this.windows = this.convertValues(source["windows"], domain.Window);
+	        this.captures = source["captures"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class WorkflowStatus {
+	    sessionId: string;
+	    requestId: number;
+	    sequence: number;
+	    phase: string;
+	    images: domain.Image[];
+	    requestImages: domain.Image[];
+	    content: string;
+	    thinking: string;
+	    error: string;
+	    keepContext: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new WorkflowStatus(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.requestId = source["requestId"];
+	        this.sequence = source["sequence"];
+	        this.phase = source["phase"];
+	        this.images = this.convertValues(source["images"], domain.Image);
+	        this.requestImages = this.convertValues(source["requestImages"], domain.Image);
+	        this.content = source["content"];
+	        this.thinking = source["thinking"];
+	        this.error = source["error"];
+	        this.keepContext = source["keepContext"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace application {
+
+	export class Capabilities {
+	    filtering: boolean;
+	    backend: string;
+	    reason?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new Capabilities(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.filtering = source["filtering"];
+	        this.backend = source["backend"];
+	        this.reason = source["reason"];
+	    }
+	}
+	export class Status {
+	    state: string;
+	    protection: domain.Protection;
+	    capabilities: Capabilities;
+	    revision: number;
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new Status(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.state = source["state"];
+	        this.protection = this.convertValues(source["protection"], domain.Protection);
+	        this.capabilities = this.convertValues(source["capabilities"], Capabilities);
+	        this.revision = source["revision"];
+	        this.error = source["error"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace config {
-	
+
 	export class Config {
 	    apiKey?: string;
 	    baseURL?: string;
@@ -17,15 +163,16 @@ export namespace config {
 	    resumePath?: string;
 	    resumeContent?: string;
 	    shortcuts?: Record<string, shortcut.KeyBinding>;
+	    keyboardProtection: domain.Protection;
 	    assistantModel?: string;
 	    windowWidth?: number;
 	    windowHeight?: number;
 	    theme?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.apiKey = source["apiKey"];
@@ -44,12 +191,13 @@ export namespace config {
 	        this.resumePath = source["resumePath"];
 	        this.resumeContent = source["resumeContent"];
 	        this.shortcuts = this.convertValues(source["shortcuts"], shortcut.KeyBinding, true);
+	        this.keyboardProtection = this.convertValues(source["keyboardProtection"], domain.Protection);
 	        this.assistantModel = source["assistantModel"];
 	        this.windowWidth = source["windowWidth"];
 	        this.windowHeight = source["windowHeight"];
 	        this.theme = source["theme"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -72,17 +220,33 @@ export namespace config {
 }
 
 export namespace domain {
-	
+
+	export class CaptureResult {
+	    applied: boolean;
+	    mechanism: string;
+	    limitation?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new CaptureResult(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.applied = source["applied"];
+	        this.mechanism = source["mechanism"];
+	        this.limitation = source["limitation"];
+	    }
+	}
 	export class DomainItem {
 	    id: string;
 	    label: string;
 	    icon: string;
 	    description: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DomainItem(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -95,18 +259,109 @@ export namespace domain {
 	    id: string;
 	    label: string;
 	    items: DomainItem[];
-	
+
 	    static createFrom(source: any = {}) {
 	        return new Category(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.label = source["label"];
 	        this.items = this.convertValues(source["items"], DomainItem);
 	    }
-	
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+	export class Image {
+	    id: number;
+	    dataURL: string;
+
+	    static createFrom(source: any = {}) {
+	        return new Image(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.dataURL = source["dataURL"];
+	    }
+	}
+	export class Policy {
+	    visible: boolean;
+	    captureProtection: boolean;
+	    clickThrough: boolean;
+	    inputMode: string;
+	    alwaysOnTop: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new Policy(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.visible = source["visible"];
+	        this.captureProtection = source["captureProtection"];
+	        this.clickThrough = source["clickThrough"];
+	        this.inputMode = source["inputMode"];
+	        this.alwaysOnTop = source["alwaysOnTop"];
+	    }
+	}
+	export class Protection {
+	    enabled: boolean;
+	    blockLeft: boolean;
+	    blockRight: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new Protection(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.blockLeft = source["blockLeft"];
+	        this.blockRight = source["blockRight"];
+	    }
+	}
+	export class Window {
+	    id: string;
+	    applied: Policy;
+	    capture: CaptureResult;
+	    captureSuppressed: boolean;
+	    ready: boolean;
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new Window(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.applied = this.convertValues(source["applied"], Policy);
+	        this.capture = this.convertValues(source["capture"], CaptureResult);
+	        this.captureSuppressed = source["captureSuppressed"];
+	        this.ready = source["ready"];
+	        this.error = source["error"];
+	    }
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -129,16 +384,16 @@ export namespace domain {
 }
 
 export namespace screen {
-	
+
 	export class PreviewResult {
 	    imgBytes: number[];
 	    base64: string;
 	    size: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PreviewResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.imgBytes = source["imgBytes"];
@@ -150,19 +405,21 @@ export namespace screen {
 }
 
 export namespace shortcut {
-	
+
 	export class KeyBinding {
 	    vkCode: string;
 	    keyName: string;
-	
+	    keys?: string[];
+
 	    static createFrom(source: any = {}) {
 	        return new KeyBinding(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.vkCode = source["vkCode"];
 	        this.keyName = source["keyName"];
+	        this.keys = source["keys"];
 	    }
 	}
 

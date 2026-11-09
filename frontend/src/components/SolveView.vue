@@ -1,5 +1,5 @@
 <template>
-  <div id="main-interface" class="main-interface" :class="{ visible: ui.mainVisible }">
+  <div id="main-interface" class="main-interface" :class="{ visible: ui.mainVisible }" :style="{ pointerEvents: ui.isClickThrough ? 'none' : 'auto' }">
     <!-- Left Panel - History -->
     <div class="left-panel" id="history-list" :class="{ collapsed: isHistoryCollapsed }">
       <div class="panel-header">
@@ -29,6 +29,10 @@
 
     <!-- Right Panel - Content -->
     <div class="right-panel">
+      <div v-if="workflow.isRunning" class="request-controls">
+        <span>{{ settingsStore.statusText }}</span>
+        <button data-testid="cancel-request" @click="workflow.cancel">停止生成</button>
+      </div>
       <!-- Empty state -->
       <EmptyState v-if="solution.history.length === 0 && !solution.isLoading && !solution.errorState.show"
         :shortcut="settingsStore.solveShortcut" :sendShortcut="settingsStore.sendShortcut" />
@@ -48,6 +52,7 @@
           <RoundDivider v-if="idx > 0" :round="idx + 1" />
 
           <div class="chat-round">
+            <div v-if="round.stopReason" class="request-stopped">{{ round.stopReason }}，已保留收到的内容</div>
             <!-- Thinking chain -->
             <ThinkingBlock
               v-if="round.thinking"
@@ -59,11 +64,11 @@
 
             <!-- AI response -->
             <div class="ai-response"
-              v-html="(idx === solution.currentRounds.length - 1 && solution.streamingHtml) ? solution.streamingHtml : solution.renderMarkdown(round.aiResponse)">
+              v-html="(round.requestKey === requestKey(workflow.state) && workflow.isRunning && solution.streamingHtml) ? solution.streamingHtml : solution.renderMarkdown(round.aiResponse)">
             </div>
 
             <!-- Streaming cursor -->
-            <span v-if="idx === solution.currentRounds.length - 1 && solution.streamingHtml && !solution.isLoading" class="stream-cursor">▍</span>
+            <span v-if="round.requestKey === requestKey(workflow.state) && workflow.isRunning && solution.streamingHtml && !solution.isLoading" class="stream-cursor">▍</span>
 
             <!-- Inline error -->
             <div v-if="round.error" class="inline-error">
@@ -112,6 +117,8 @@ import { ref, computed } from 'vue'
 import { useSolutionStore } from '../stores/solution'
 import { useSettingsStore } from '../stores/settings'
 import { useUIStore } from '../stores/ui'
+import { useWorkflowStore } from '../stores/workflow'
+import { requestKey } from '../utils/workflow-model'
 import Icon from './Icon.vue'
 import HistoryItem from './HistoryItem.vue'
 import EmptyState from './EmptyState.vue'
@@ -124,6 +131,7 @@ import RoundDivider from './RoundDivider.vue'
 const solution = useSolutionStore()
 const settingsStore = useSettingsStore()
 const ui = useUIStore()
+const workflow = useWorkflowStore()
 
 const isHistoryCollapsed = ref(false)
 
@@ -136,6 +144,9 @@ const hasAnyContent = computed(() => {
 </script>
 
 <style scoped>
+.request-controls { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; color: var(--text-secondary); }
+.request-controls button { background: var(--surface-card); border: 1px solid var(--border-default); color: var(--text-primary); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.request-stopped { color: var(--text-muted); font-size: 12px; margin-bottom: 8px; }
 /* ========================================
    SolveView Layout
    ======================================== */

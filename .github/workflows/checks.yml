@@ -1,0 +1,71 @@
+name: Checks
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    name: Unit and integration (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: node scripts/run.mjs prepare
+      - run: npm test
+        working-directory: frontend
+      - run: node --test scripts/framework.test.mjs scripts/toolchain.test.mjs scripts/compatibility.test.mjs scripts/focus-evidence.test.mjs scripts/keyboard-evidence.test.mjs
+      - run: node scripts/compatibility.mjs
+      - run: npm run build
+        working-directory: frontend
+      - run: go test -race -coverprofile coverage.out ./...
+      - run: node scripts/run.mjs build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-${{ matrix.os }}
+          path: coverage.out
+  e2e:
+    name: Browser E2E with Go services
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npx --no-install playwright install --with-deps chromium
+        working-directory: frontend
+      - run: node --test scripts/run.test.mjs
+      - run: npm run test:e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results

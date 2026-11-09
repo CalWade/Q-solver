@@ -4,11 +4,26 @@ package platform
 
 /*
 #cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework Cocoa -framework AppKit -framework CoreGraphics -framework AVFoundation
+#cgo LDFLAGS: -framework Cocoa -framework AppKit -framework CoreGraphics -framework AVFoundation -framework QuartzCore
 
 #import <Cocoa/Cocoa.h>
 #import <CoreGraphics/CoreGraphics.h>
+#import <QuartzCore/QuartzCore.h>
 #import <AVFoundation/AVFoundation.h>
+
+// Implemented by the pinned native host; ordinary NSWindow cannot provide this gate.
+@protocol QSEditingWindow
+- (void)setQSEditable:(BOOL)editable;
+@end
+
+static NSRunningApplication *qsPreviousApplication;
+static void QSWindowOnMain(dispatch_block_t block) {
+    if ([NSThread isMainThread]) block();
+    else dispatch_sync(dispatch_get_main_queue(), block);
+}
+static bool QSWindowValid(NSWindow *window) {
+    return window && [NSApp.windows indexOfObjectIdenticalTo:window] != NSNotFound;
+}
 
 // 检查截图权限 (macOS 10.15+)
 bool CheckScreenCaptureAccessC() {
@@ -28,11 +43,12 @@ bool RequestScreenCaptureAccessC() {
 
 // 获取应用主窗口
 void* GetMainWindowC() {
-    NSApplication* app = [NSApplication sharedApplication];
-    NSWindow* window = [app mainWindow];
-    if (window == nil && app.windows.count > 0) {
-        window = app.windows[0];
-    }
+    __block NSWindow *window = nil;
+    QSWindowOnMain(^{
+        NSApplication *app = NSApplication.sharedApplication;
+        window = app.mainWindow;
+        if (!window && app.windows.count) window = app.windows[0];
+    });
     return (__bridge void*)window;
 }
 
@@ -40,7 +56,7 @@ void* GetMainWindowC() {
 void SetWindowIgnoresMouseEventsC(void* nsWindow, bool ignores) {
     if (nsWindow == NULL) return;
     NSWindow* window = (__bridge NSWindow*)nsWindow;
-    dispatch_async(dispatch_get_main_queue(), ^{
+    QSWindowOnMain(^{
         [window setIgnoresMouseEvents:ignores];
     });
 }
@@ -49,7 +65,7 @@ void SetWindowIgnoresMouseEventsC(void* nsWindow, bool ignores) {
 void SetWindowLevelC(void* nsWindow, int level) {
     if (nsWindow == NULL) return;
     NSWindow* window = (__bridge NSWindow*)nsWindow;
-    dispatch_async(dispatch_get_main_queue(), ^{
+    QSWindowOnMain(^{
         [window setLevel:level];
     });
 }
@@ -58,10 +74,11 @@ void SetWindowLevelC(void* nsWindow, int level) {
 void SetWindowStyleMaskBorderlessC(void* nsWindow) {
     if (nsWindow == NULL) return;
     NSWindow* window = (__bridge NSWindow*)nsWindow;
-    dispatch_async(dispatch_get_main_queue(), ^{
+    QSWindowOnMain(^{
         // 保留 titled 样式以维持输入法上下文（IMK），同时隐藏标题栏
+        NSWindowStyleMask panelMode = window.styleMask & NSWindowStyleMaskNonactivatingPanel;
         [window setStyleMask:(NSWindowStyleMaskTitled |
-                              NSWindowStyleMaskFullSizeContentView)];
+                              NSWindowStyleMaskFullSizeContentView | panelMode)];
         [window setTitlebarAppearsTransparent:YES];
         [window setTitleVisibility:NSWindowTitleHidden];
         // 隐藏标题栏按钮
@@ -76,46 +93,99 @@ void SetWindowStyleMaskBorderlessC(void* nsWindow) {
     });
 }
 
-// 设置窗口 sharingType（防录屏，macOS 14+）
-void SetWindowSharingTypeC(void* nsWindow, int sharingType) {
-    if (nsWindow == NULL) return;
-    NSWindow* window = (__bridge NSWindow*)nsWindow;
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (@available(macOS 14.0, *)) {
-            window.sharingType = sharingType;
-        }
+// Applies the legacy sharing attribute; capture-path compatibility is separate.
+bool SetWindowSharingTypeC(void* nsWindow, int sharingType) {
+    __block bool applied = false;
+    NSWindow *window = (__bridge NSWindow*)nsWindow;
+    QSWindowOnMain(^{
+        if (!QSWindowValid(window)) return;
+        window.sharingType = (NSWindowSharingType)sharingType;
+        applied = window.sharingType == sharingType;
     });
+    return applied;
+}
+
+bool SetWindowVisibleC(void* nsWindow, bool visible) {
+    __block bool applied = false;
+    NSWindow *window = (__bridge NSWindow*)nsWindow;
+    QSWindowOnMain(^{
+        if (!QSWindowValid(window)) return;
+        if (visible) [window orderFrontRegardless]; else [window orderOut:nil];
+        applied = window.visible == visible;
+    });
+    return applied;
+}
+
+bool SetCaptureSuppressedC(void* nsWindow, bool suppressed) {
+    __block bool applied = false;
+    NSWindow *window = (__bridge NSWindow*)nsWindow;
+    QSWindowOnMain(^{
+        if (!QSWindowValid(window)) return;
+        window.alphaValue = suppressed ? 0.0 : 1.0;
+        [CATransaction flush];
+        applied = window.alphaValue == (suppressed ? 0.0 : 1.0);
+    });
+    return applied;
+}
+
+bool WindowValidC(void *nsWindow) {
+    __block bool valid = false;
+    QSWindowOnMain(^{ valid = QSWindowValid((__bridge NSWindow*)nsWindow); });
+    return valid;
 }
 
 // 设置窗口不激活
-void SetWindowNotActivatingC(void* nsWindow, bool noActivate) {
-    if (nsWindow == NULL) return;
+bool SetWindowNotActivatingC(void* nsWindow, bool noActivate) {
+    if (nsWindow == NULL) return false;
     NSWindow* window = (__bridge NSWindow*)nsWindow;
-    dispatch_async(dispatch_get_main_queue(), ^{
+    __block bool applied = false;
+    QSWindowOnMain(^{
+        if (!QSWindowValid(window)) return;
         if (noActivate) {
-            // 只设置 CanJoinAllSpaces，不设置 Stationary/IgnoresCycle
-            // Stationary 会导致窗口点击后无法成为 key window，从而无法拖动
-            [window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces];
-        } else {
-            [window setCollectionBehavior:NSWindowCollectionBehaviorDefault];
+            if ([window respondsToSelector:@selector(setQSEditable:)]) {
+                [(id<QSEditingWindow>)window setQSEditable:NO];
+            }
+            [window setCollectionBehavior:(window.collectionBehavior | NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary)];
+            BOOL ownedKey = window.keyWindow;
+            if (ownedKey) [window resignKeyWindow];
+            if (ownedKey && NSApp.active && qsPreviousApplication && !qsPreviousApplication.terminated) {
+                [qsPreviousApplication activateWithOptions:0];
+            }
+            [qsPreviousApplication release];
+            qsPreviousApplication = nil;
         }
+        applied = !noActivate || (!window.canBecomeKeyWindow && !window.keyWindow);
     });
+    return applied;
 }
 
 // 让窗口可以接收键盘焦点
-void SetWindowCanBecomeKeyC(void* nsWindow) {
-    if (nsWindow == NULL) return;
+bool SetWindowCanBecomeKeyC(void* nsWindow) {
+    if (nsWindow == NULL) return false;
     NSWindow* window = (__bridge NSWindow*)nsWindow;
-    dispatch_async(dispatch_get_main_queue(), ^{
+    __block bool applied = false;
+    QSWindowOnMain(^{
+        if (!QSWindowValid(window)) return;
+        if ([window respondsToSelector:@selector(setQSEditable:)]) {
+            [(id<QSEditingWindow>)window setQSEditable:YES];
+        }
+        NSRunningApplication *front = NSWorkspace.sharedWorkspace.frontmostApplication;
+        if (front.processIdentifier != NSProcessInfo.processInfo.processIdentifier) {
+            [qsPreviousApplication release];
+            qsPreviousApplication = [front retain];
+        }
+        [NSApp activateIgnoringOtherApps:YES];
         [window makeKeyAndOrderFront:nil];
+        applied = window.canBecomeKeyWindow;
     });
+    return applied;
 }
 
 // 设置窗口接受鼠标事件时自动成为 key window
 void SetWindowAcceptsMouseMovedC(void* nsWindow) {
     if (nsWindow == NULL) return;
     NSWindow* window = (__bridge NSWindow*)nsWindow;
-    dispatch_async(dispatch_get_main_queue(), ^{
+    QSWindowOnMain(^{
         [window setAcceptsMouseMovedEvents:YES];
     });
 }
@@ -124,7 +194,7 @@ void SetWindowAcceptsMouseMovedC(void* nsWindow) {
 void SetWindowCornerRadiusC(void* nsWindow, float radius) {
     if (nsWindow == NULL) return;
     NSWindow* window = (__bridge NSWindow*)nsWindow;
-    dispatch_async(dispatch_get_main_queue(), ^{
+    QSWindowOnMain(^{
         // 设置 contentView 层的圆角
         NSView* contentView = [window contentView];
         if (contentView) {
@@ -139,14 +209,14 @@ void SetWindowCornerRadiusC(void* nsWindow, float radius) {
 void SetWindowAlphaC(void* nsWindow, float alpha) {
     if (nsWindow == NULL) return;
     NSWindow* window = (__bridge NSWindow*)nsWindow;
-    dispatch_async(dispatch_get_main_queue(), ^{
+    QSWindowOnMain(^{
         [window setAlphaValue:alpha];
     });
 }
 
 // 打开系统偏好设置的屏幕录制权限页面
 void OpenScreenCaptureSettingsC() {
-    dispatch_async(dispatch_get_main_queue(), ^{
+    QSWindowOnMain(^{
         NSURL *url = [NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"];
         [[NSWorkspace sharedWorkspace] openURL:url];
     });
@@ -154,7 +224,7 @@ void OpenScreenCaptureSettingsC() {
 
 // 打开系统偏好设置的麦克风权限页面
 void OpenMicrophoneSettingsC() {
-    dispatch_async(dispatch_get_main_queue(), ^{
+    QSWindowOnMain(^{
         NSURL *url = [NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"];
         [[NSWorkspace sharedWorkspace] openURL:url];
     });
@@ -213,21 +283,20 @@ const (
 	nsWindowSharingReadOnly = 1
 )
 
-// 存储主窗口指针
-var mainWindow unsafe.Pointer
-
 // GetWindowHandle 获取当前进程主窗口句柄
 func GetWindowHandle() (WindowHandle, error) {
 	window := C.GetMainWindowC()
 	if window == nil {
 		return 0, errors.New("无法获取主窗口")
 	}
-	mainWindow = window
 	return WindowHandle(uintptr(window)), nil
 }
 
 // ApplyGhostMode 应用幽灵模式（无边框、置顶、防录屏、不抢焦点）
 func ApplyGhostMode(hwnd WindowHandle) error {
+	if !bool(C.WindowValidC(unsafe.Pointer(uintptr(hwnd)))) {
+		return errors.New("窗口句柄已失效")
+	}
 	window := unsafe.Pointer(uintptr(hwnd))
 
 	// 无边框 + 透明背景
@@ -239,21 +308,21 @@ func ApplyGhostMode(hwnd WindowHandle) error {
 	// 置顶
 	C.SetWindowLevelC(window, C.int(WindowLevelFloating))
 
-	// 防录屏 macOS 14+ 才可以
-	C.SetWindowSharingTypeC(window, C.int(nsWindowSharingNone))
-
 	// 不抢焦点
 	C.SetWindowNotActivatingC(window, C.bool(true))
 
 	// 允许窗口在点击时自动接收鼠标事件（修复失焦后无法拖动的问题）
 	C.SetWindowAcceptsMouseMovedC(window)
 
-	logger.Println("[macOS] 幽灵模式已激活")
+	logger.Println("[macOS] 窗口外观已初始化")
 	return nil
 }
 
 // SetClickThrough 设置鼠标穿透
 func SetClickThrough(hwnd WindowHandle, enabled bool) error {
+	if !bool(C.WindowValidC(unsafe.Pointer(uintptr(hwnd)))) {
+		return errors.New("窗口句柄已失效")
+	}
 	window := unsafe.Pointer(uintptr(hwnd))
 	C.SetWindowIgnoresMouseEventsC(window, C.bool(enabled))
 	return nil
@@ -261,26 +330,59 @@ func SetClickThrough(hwnd WindowHandle, enabled bool) error {
 
 // SetDisplayAffinity 设置防录屏状态
 func SetDisplayAffinity(hwnd WindowHandle, hidden bool) error {
-	window := unsafe.Pointer(uintptr(hwnd))
+	_, err := ApplyCaptureProtection(hwnd, hidden)
+	return err
+}
+
+func ApplyCaptureProtection(hwnd WindowHandle, hidden bool) (string, error) {
+	sharing := nsWindowSharingReadOnly
 	if hidden {
-		C.SetWindowSharingTypeC(window, C.int(nsWindowSharingNone))
-	} else {
-		C.SetWindowSharingTypeC(window, C.int(nsWindowSharingReadOnly))
+		sharing = nsWindowSharingNone
+	}
+	if !bool(C.SetWindowSharingTypeC(unsafe.Pointer(uintptr(hwnd)), C.int(sharing))) {
+		return "unavailable", errors.New("系统未确认窗口捕获属性")
+	}
+	if !hidden {
+		return "off", nil
+	}
+	return "nswindow-sharing-none", nil
+}
+
+func SetVisibleWithoutActivation(hwnd WindowHandle, visible bool) error {
+	if !bool(C.SetWindowVisibleC(unsafe.Pointer(uintptr(hwnd)), C.bool(visible))) {
+		return errors.New("窗口显示状态未生效")
+	}
+	return nil
+}
+
+func SetCaptureSuppressed(hwnd WindowHandle, suppressed bool) error {
+	if !bool(C.SetCaptureSuppressedC(unsafe.Pointer(uintptr(hwnd)), C.bool(suppressed))) {
+		return errors.New("截图期间窗口透明状态未生效")
 	}
 	return nil
 }
 
 // RestoreFocus 恢复焦点
 func RestoreFocus(hwnd WindowHandle) error {
+	if !bool(C.WindowValidC(unsafe.Pointer(uintptr(hwnd)))) {
+		return errors.New("窗口句柄已失效")
+	}
 	window := unsafe.Pointer(uintptr(hwnd))
-	C.SetWindowCanBecomeKeyC(window)
+	if !bool(C.SetWindowCanBecomeKeyC(window)) {
+		return errors.New("窗口未允许编辑焦点")
+	}
 	return nil
 }
 
 // RemoveFocus 移除焦点
 func RemoveFocus(hwnd WindowHandle) error {
+	if !bool(C.WindowValidC(unsafe.Pointer(uintptr(hwnd)))) {
+		return errors.New("窗口句柄已失效")
+	}
 	window := unsafe.Pointer(uintptr(hwnd))
-	C.SetWindowNotActivatingC(window, C.bool(true))
+	if !bool(C.SetWindowNotActivatingC(window, C.bool(true))) {
+		return errors.New("当前宿主未提供被动面板，请使用项目构建入口")
+	}
 	return nil
 }
 
@@ -301,6 +403,9 @@ func OpenScreenCaptureSettings() {
 
 // SetWindowLevel 设置窗口层级 (用于临时取消/恢复置顶)
 func SetWindowLevel(hwnd WindowHandle, level int) error {
+	if !bool(C.WindowValidC(unsafe.Pointer(uintptr(hwnd)))) {
+		return errors.New("窗口句柄已失效")
+	}
 	window := unsafe.Pointer(uintptr(hwnd))
 	C.SetWindowLevelC(window, C.int(level))
 	return nil

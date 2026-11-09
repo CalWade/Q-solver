@@ -19,9 +19,10 @@ type OpenAIAdapter struct {
 }
 
 func NewOpenAIAdapter(cfg *config.Config) *OpenAIAdapter {
-	model := cfg.Model
-	if model == "" {
-		model = openai.ChatModelGPT4o
+	// A live settings update must not mutate an in-flight request's model.
+	snapshot := *cfg
+	if snapshot.Model == "" {
+		snapshot.Model = openai.ChatModelGPT4o
 	}
 
 	baseURL := strings.TrimSpace(cfg.BaseURL)
@@ -38,7 +39,7 @@ func NewOpenAIAdapter(cfg *config.Config) *OpenAIAdapter {
 
 	return &OpenAIAdapter{
 		client: &client,
-		config: cfg,
+		config: &snapshot,
 	}
 }
 

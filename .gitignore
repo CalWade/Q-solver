@@ -1,6 +1,7 @@
 # Build outputs
 build/bin/
 frontend/dist/
+frontend/package.json.md5
 *.exe
 *.dll
 *.onnx
@@ -13,6 +14,10 @@ lib/models/
 # Local config and cache
 config/config.json
 .gocache/
+.local/
+coverage.out
+frontend/test-results/
+frontend/playwright-report/
 
 # IDE, editor and OS files
 .idea/

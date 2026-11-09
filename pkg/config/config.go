@@ -1,6 +1,7 @@
 package config
 
 import (
+	"Q-Solver/internal/input/domain"
 	"Q-Solver/pkg/shortcut"
 	"encoding/json"
 	"runtime"
@@ -23,6 +24,7 @@ type Config struct {
 	ResumePath         string                         `json:"resumePath,omitempty"`
 	ResumeContent      string                         `json:"resumeContent,omitempty"`
 	Shortcuts          map[string]shortcut.KeyBinding `json:"shortcuts,omitempty"`
+	KeyboardProtection domain.Protection              `json:"keyboardProtection"`
 
 	// 辅助模型（用于总结对话生成问题导图）
 	AssistantModel string `json:"assistantModel,omitempty"`
@@ -55,7 +57,8 @@ func NewDefaultConfig() Config {
 		Grayscale:          false,        // 保持彩色，某些场景颜色有意义
 		ResumeContent:      "",
 
-		Shortcuts: GetDefaultShortcuts(),
+		Shortcuts:          GetDefaultShortcuts(),
+		KeyboardProtection: domain.Protection{BlockLeft: true},
 
 		// 辅助模型
 		AssistantModel: "",
@@ -71,13 +74,12 @@ func NewDefaultConfig() Config {
 
 // GetDefaultShortcuts 根据平台返回默认快捷键配置
 //
-// macOS 侧说明：实际快捷键由 shortcut_darwin.go 的 macDefaultShortcuts 硬编码决定，
-// 这里的 map 仅用于前端设置页展示 KeyName。修改 macOS 真实快捷键必须同步改 shortcut_darwin.go。
+// 两个平台的展示、系统注册和防护规则都由这份可持久化配置生成。
 //
 // 设计原则：
 //   - 主操作单手可按（Cmd/Alt + 数字 / Enter）
 //   - 不冲突 IDE / 浏览器主流快捷键
-//   - 所有 ComboID 升级时必须同步更新 manager.go 的 migrateShortcuts 老 ID 黑名单
+//   - 升级时保留已有自定义，仅补充缺失动作
 func GetDefaultShortcuts() map[string]shortcut.KeyBinding {
 	if runtime.GOOS == "darwin" {
 		return map[string]shortcut.KeyBinding{
@@ -122,6 +124,9 @@ func (c *Config) ToJSON() string {
 }
 
 func (c *Config) Validate() error {
+	if _, err := shortcut.Profile(c.Shortcuts, c.KeyboardProtection, runtime.GOOS); err != nil {
+		return err
+	}
 	if c.ScreenshotMode != "" && c.ScreenshotMode != "fullscreen" && c.ScreenshotMode != "window" {
 		return &ValidationError{Field: "screenshotMode", Message: "截图模式必须是 'fullscreen' 或 'window'"}
 	}
@@ -132,6 +137,35 @@ func (c *Config) Validate() error {
 		return &ValidationError{Field: "compressionQuality", Message: "压缩质量必须在 1-100 之间"}
 	}
 	return nil
+}
+
+func (c Config) Clone() Config {
+	c.Shortcuts = shortcut.CloneBindings(c.Shortcuts)
+	return c
+}
+
+func GetProtectionShortcuts() map[string]shortcut.KeyBinding {
+	bindings, _ := shortcut.NormalizeBindings(GetDefaultShortcuts())
+	if runtime.GOOS == "darwin" {
+		return bindings
+	}
+	for action, binding := range bindings {
+		seen := map[domain.Key]bool{}
+		var keys []domain.Key
+		for _, key := range binding.Keys {
+			if domain.Family(key) == domain.Alt {
+				key = domain.Control
+			}
+			if !seen[key] {
+				keys = append(keys, key)
+				seen[key] = true
+			}
+		}
+		binding.Keys = keys
+		bindings[action] = binding
+	}
+	bindings, _ = shortcut.NormalizeBindings(bindings)
+	return bindings
 }
 
 type ValidationError struct {
