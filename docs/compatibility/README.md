@@ -77,7 +77,25 @@
 
 流启动确认与图像就绪分别处理，最多等待 3 秒取得足够完整帧。没有图像时仍然失败，不能将黑屏、暂停或缺帧计为透明内容。每次输出的状态数量与完整帧记录相互核对。
 
-这里每个阶段都重新打开采集源，尚未测量已经运行的同一个流中途切换保护、长时采集、显示器捕获及第三方共享接收端。源列表仍可找到窗口。`SCStream` 的完整帧与 idle 状态分别处理，idle 不作为新图像证据。[Apple SCStreamOutput](https://developer.apple.com/documentation/screencapturekit/scstreamoutput)、[帧状态](https://developer.apple.com/documentation/screencapturekit/scstreamframeinfo/status)。
+这里每个阶段都重新打开采集源，验证范围为新建短时单窗口流。源列表仍可找到窗口。`SCStream` 的完整帧与 idle 状态分别处理，idle 不作为新图像证据。[Apple SCStreamOutput](https://developer.apple.com/documentation/screencapturekit/scstreamoutput)、[帧状态](https://developer.apple.com/documentation/screencapturekit/scstreamframeinfo/status)。
+
+### 同一视频流中的保护切换
+
+随后运行 `live-capture-probe`，完成多窗口生命周期检查后关闭额外的测试窗口，按生产的单窗口形态保持一个 `SCStream` 和同一个过滤器持续运行。每阶段至少持续 2 秒，通过生产窗口服务切换捕获属性，全程启动、停止各一次，报告核对注册窗口数量为一。代表记录包含 94 个完整帧，全部原始 PNG 与时间线见 [连续流切换证据](evidence/macos-27-sck-live-2026-11-09/report.json)。
+
+| 阶段 | 完整帧结果 | 本地窗口状态 |
+| --- | --- | --- |
+| 关闭保护的前基线 | 32 帧含红绿标记 | visible=true，alpha=1 |
+| 中途开启 sharingType none | 31 帧均为 100% 透明，原始 RGB 全零 | visible=true，alpha=1 |
+| 中途再次关闭保护 | 31 帧恢复红绿标记 | visible=true，alpha=1 |
+
+单窗口形态下首轮与两轮复测均完成上述对照，每轮 94 个完整帧，保护阶段各 31 帧全部透明，原始采集缓冲内的 RGB 数据均为零。首个透明采样帧出现在属性确认后约 41 至 49 毫秒，采样频率为 15fps。这个数值表示下一张已观察帧的时间，实际生效时刻位于相邻帧之间。
+
+时间线使用 CoreMedia host clock，WindowServer 的 displayTime 由同一时钟换算。画面生成时间与应用属性确认时间相互比较，收到较晚的旧帧仍归到它实际生成的阶段。所有完整帧都保留，有效时间线中保护阶段出现任何可见帧都会记录为 `visible` 或 `transition-leak`。原始 RGB 也单独检查，Alpha 透明但仍有颜色数据时记录为 `transparent-with-data`。采样不足、时钟不可比、窗口本地透明、缺失基线或流重启均使判定失败。[Apple displayTime](https://developer.apple.com/documentation/screencapturekit/scstreamframeinfo/displaytime)、[host time 换算](https://developer.apple.com/documentation/coremedia/cmclockmakehosttimefromsystemunits%28_%3A%29)。
+
+早期保留双窗口的原型曾在关闭保护后先采到一帧透明内容，再恢复可见内容，该过渡与原始记录保留在本机。恢复阶段的完整帧均进入时间线，结束时要求连续三帧可见。当前三轮单窗口记录的恢复阶段均为 31 个可见帧。
+
+该结果验证这台 Mac 上同一单窗口流中途切换属性的短时行为。长时运行、显示器捕获及真实会议共享接收端仍待验收，60 项平台矩阵维持原状态。
 
 ## 平台矩阵
 

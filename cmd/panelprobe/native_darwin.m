@@ -79,7 +79,7 @@ QSProbePixels QSProbeReadImage(CGImageRef image, NSString *filename) {
 
 int QSProbeRunning(void) { return probeDelegate && !probeDelegate.finished; }
 
-void QSProbeCapture(uintptr_t handle, int index, int stream) {
+void QSProbeCapture(uintptr_t handle, int index, int stream, int liveMillis) {
     if (!CGPreflightScreenCaptureAccess()) { captureResult(index, 0, 0, 0, 0, -10001); return; }
     if (@available(macOS 14.0, *)) {
         CGWindowID ownedID = (CGWindowID)[(NSWindow *)handle windowNumber];
@@ -101,7 +101,7 @@ void QSProbeCapture(uintptr_t handle, int index, int stream) {
                 config.ignoreShadowsSingleWindow = YES;
                 if (stream) {
                     dispatch_async(dispatch_get_main_queue(), ^{
-                        if (QSProbeRunning()) QSProbeStartStream(filter, config, index);
+                        if (QSProbeRunning()) QSProbeStartStream(filter, config, index, liveMillis);
                     });
                 } else [SCScreenshotManager captureImageWithFilter:filter configuration:config completionHandler:^(CGImageRef image, NSError *captureError) {
                     if (captureError || !image) { captureResult(index, 0, 0, 0, 0, captureError ? (int)captureError.code : -10003); return; }

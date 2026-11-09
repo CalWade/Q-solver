@@ -6,15 +6,25 @@
 #import <CoreVideo/CoreVideo.h>
 #include <time.h>
 
-extern void panelProbeStreamFrame(int width, int height, double red, double green, double black, double transparent, int64_t presentation, const char *file);
+extern void panelProbeStreamFrame(int width, int height, double red, double green, double black, double transparent, double rawColor, int64_t presentation, int64_t display, int64_t received, const char *file);
 extern void panelProbeStreamFinished(int index, int duration, int outputs, int errorCode);
 extern void panelProbeStreamStatus(int status, int count);
+extern void panelProbeStreamLifecycle(int phase, int64_t at);
+extern int panelProbeLivePolicy(int index);
 
 typedef struct {
     QSProbePixels pixels;
-    int64_t presentation;
+    int64_t presentation, display, received;
+    double rawColor;
     char file[64];
 } QSStreamFrame;
+
+static int64_t timeNanos(CMTime time) {
+    if (!CMTIME_IS_NUMERIC(time)) return 0;
+    return CMTimeConvertScale(time, NSEC_PER_SEC, kCMTimeRoundingMethod_Default).value;
+}
+
+int64_t QSProbeHostTime(void) { return timeNanos(CMClockGetTime(CMClockGetHostTimeClock())); }
 
 static int64_t monotonicNanos(void) {
     struct timespec now;
@@ -26,24 +36,26 @@ static int64_t monotonicNanos(void) {
     SCStream *_stream;
     dispatch_queue_t _sampleQueue;
     NSMutableArray *_frames;
-    int _index, _outputs, _sampleError, _cancelError;
+    int _index, _outputs, _sampleError, _cancelError, _liveMillis;
     int _statuses[7];
     int64_t _startedAt;
     BOOL _starting, _started, _finishing;
 }
-- (instancetype)initWithFilter:(SCContentFilter *)filter configuration:(SCStreamConfiguration *)config index:(int)index;
+- (instancetype)initWithFilter:(SCContentFilter *)filter configuration:(SCStreamConfiguration *)config index:(int)index liveMillis:(int)liveMillis;
 - (void)start;
 - (void)finish:(int)errorCode;
 - (void)checkSamples;
+- (void)advanceLivePhase;
 @end
 
 static QSProbeStream *activeStream;
 
 @implementation QSProbeStream
-- (instancetype)initWithFilter:(SCContentFilter *)filter configuration:(SCStreamConfiguration *)config index:(int)index {
+- (instancetype)initWithFilter:(SCContentFilter *)filter configuration:(SCStreamConfiguration *)config index:(int)index liveMillis:(int)liveMillis {
     self = [super init];
     if (self) {
         _index = index;
+        _liveMillis = liveMillis;
         _frames = [[NSMutableArray alloc] init];
         _sampleQueue = dispatch_queue_create("qsolver.probe.capture", DISPATCH_QUEUE_SERIAL);
         config.pixelFormat = kCVPixelFormatType_32BGRA;
@@ -74,12 +86,28 @@ static QSProbeStream *activeStream;
             if (startError) { [self finish:(int)startError.code]; return; }
             self->_started = YES;
             self->_startedAt = monotonicNanos();
+            if (self->_liveMillis) panelProbeStreamLifecycle(0, QSProbeHostTime());
             if (self->_cancelError) { [self finish:self->_cancelError]; return; }
+            if (self->_liveMillis) {
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, self->_liveMillis * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
+                    [self advanceLivePhase];
+                });
+                return;
+            }
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 500 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
                 [self checkSamples];
             });
         });
     }];
+}
+- (void)advanceLivePhase {
+    if (_finishing) return;
+    if (_index == 2) { [self finish:0]; return; }
+    if (!panelProbeLivePolicy(_index + 1)) { [self finish:-10014]; return; }
+    _index++;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, _liveMillis * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
+        [self advanceLivePhase];
+    });
 }
 - (void)checkSamples {
     if (_finishing) return;
@@ -106,6 +134,7 @@ static QSProbeStream *activeStream;
     if (_starting) { _cancelError = errorCode; return; }
     _finishing = YES;
     void (^finishSamples)(NSError *) = ^(NSError *stopError) {
+        int64_t stoppedAt = self->_started && !stopError ? QSProbeHostTime() : 0;
         dispatch_async(self->_sampleQueue, ^{
             int finalError = errorCode;
             if (!finalError) finalError = stopError ? (int)stopError.code : self->_sampleError;
@@ -120,12 +149,13 @@ static QSProbeStream *activeStream;
                 if (!removed && !reportedError) reportedError = removeError ? (int)removeError.code : -10012;
                 activeStream = nil;
                 if (QSProbeRunning()) {
+                    if (self->_liveMillis && stoppedAt) panelProbeStreamLifecycle(1, stoppedAt);
                     for (int status = 0; status < 7; status++) panelProbeStreamStatus(status, self->_statuses[status]);
                     for (NSValue *value in self->_frames) {
                         QSStreamFrame frame;
                         [value getValue:&frame size:sizeof(frame)];
                         panelProbeStreamFrame(frame.pixels.width, frame.pixels.height, frame.pixels.red, frame.pixels.green,
-                            frame.pixels.black, frame.pixels.transparent, frame.presentation, frame.file);
+                            frame.pixels.black, frame.pixels.transparent, frame.rawColor, frame.presentation, frame.display, frame.received, frame.file);
                     }
                     panelProbeStreamFinished(self->_index, duration, self->_outputs, reportedError);
                 } else {
@@ -147,6 +177,7 @@ static QSProbeStream *activeStream;
 - (void)stream:(SCStream *)stream didOutputSampleBuffer:(CMSampleBufferRef)sample ofType:(SCStreamOutputType)type {
     @autoreleasepool {
         if (type != SCStreamOutputTypeScreen || !CMSampleBufferIsValid(sample)) return;
+        int64_t received = QSProbeHostTime();
         _outputs++;
         NSArray *attachments = (NSArray *)CMSampleBufferGetSampleAttachmentsArray(sample, false);
         NSNumber *status = attachments.count ? attachments[0][SCStreamFrameInfoStatus] : nil;
@@ -168,11 +199,25 @@ static QSProbeStream *activeStream;
         CGImageRef image = CGImageCreate(width, height, 8, 32, stride, colors,
             kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst, provider, NULL, false, kCGRenderingIntentDefault);
         QSStreamFrame frame = {0};
-        snprintf(frame.file, sizeof(frame.file), "capture-stream-%d-%lu.png", _index, (unsigned long)_frames.count);
+        if (_liveMillis) snprintf(frame.file, sizeof(frame.file), "capture-live-%lu.png", (unsigned long)_frames.count);
+        else snprintf(frame.file, sizeof(frame.file), "capture-stream-%d-%lu.png", _index, (unsigned long)_frames.count);
         if (image) frame.pixels = QSProbeReadImage(image, [NSString stringWithUTF8String:frame.file]);
         else frame.pixels.error = -10010;
-        CMTime presentation = CMTimeConvertScale(CMSampleBufferGetPresentationTimeStamp(sample), NSEC_PER_SEC, kCMTimeRoundingMethod_Default);
-        frame.presentation = presentation.value;
+        if (!frame.pixels.error) {
+            size_t colored = 0;
+            for (size_t row = 0; row < height; row++) {
+                const unsigned char *pixels = (const unsigned char *)base + row * stride;
+                for (size_t col = 0; col < width; col++) {
+                    const unsigned char *bgra = pixels + col * 4;
+                    if (bgra[0] || bgra[1] || bgra[2]) colored++;
+                }
+            }
+            frame.rawColor = (double)colored / (width * height);
+        }
+        frame.presentation = timeNanos(CMSampleBufferGetPresentationTimeStamp(sample));
+        NSNumber *display = attachments.count ? attachments[0][SCStreamFrameInfoDisplayTime] : nil;
+        if (display) frame.display = timeNanos(CMClockMakeHostTimeFromSystemUnits(display.unsignedLongLongValue));
+        frame.received = received;
         if (image) CGImageRelease(image);
         CGDataProviderRelease(provider);
         CGColorSpaceRelease(colors);
@@ -183,8 +228,8 @@ static QSProbeStream *activeStream;
 }
 @end
 
-void QSProbeStartStream(SCContentFilter *filter, SCStreamConfiguration *config, int index) {
-    activeStream = [[QSProbeStream alloc] initWithFilter:filter configuration:config index:index];
+void QSProbeStartStream(SCContentFilter *filter, SCStreamConfiguration *config, int index, int liveMillis) {
+    activeStream = [[QSProbeStream alloc] initWithFilter:filter configuration:config index:index liveMillis:liveMillis];
     [activeStream start];
 }
 

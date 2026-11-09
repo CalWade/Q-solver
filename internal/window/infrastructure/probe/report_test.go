@@ -31,3 +31,16 @@ func TestMissingOrAdverseEvidenceFails(t *testing.T) {
 		}
 	}
 }
+
+func TestWholeReportIncludesLiveCaptureCleanupAndEvidence(t *testing.T) {
+	r := completeReport()
+	live := liveCaptureFixture()
+	r.LiveCapture = &live
+	if !r.Evaluate() {
+		t.Fatal(r)
+	}
+	live.Stops = 0
+	if r.Evaluate() {
+		t.Fatal("window observations masked incomplete live capture", r)
+	}
+}

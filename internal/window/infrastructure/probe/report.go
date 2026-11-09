@@ -19,13 +19,14 @@ type Check struct {
 	Passed bool   `json:"passed"`
 }
 type Report struct {
-	System       string         `json:"system"`
-	WebViewReady bool           `json:"webViewReady"`
-	Observations []Observation  `json:"observations"`
-	Checks       []Check        `json:"checks"`
-	Errors       []string       `json:"errors,omitempty"`
-	Limitations  []string       `json:"limitations"`
-	Capture      *CaptureReport `json:"capture,omitempty"`
+	System       string             `json:"system"`
+	WebViewReady bool               `json:"webViewReady"`
+	Observations []Observation      `json:"observations"`
+	Checks       []Check            `json:"checks"`
+	Errors       []string           `json:"errors,omitempty"`
+	Limitations  []string           `json:"limitations"`
+	Capture      *CaptureReport     `json:"capture,omitempty"`
+	LiveCapture  *LiveCaptureReport `json:"liveCapture,omitempty"`
 }
 
 func (r *Report) Evaluate() bool {
@@ -52,6 +53,14 @@ func (r *Report) Evaluate() bool {
 			"仅通过 ScreenCaptureKit 单窗口接口捕获自建合成面板，不采集其他窗口或显示器画面。",
 			"completed 表示对照测试完成；protectedWindowOutcome=visible 表示 sharingType none 未隐藏测试标记。",
 			"透明/留空/标记缺失不等同于窗口从共享源列表消失；成功抓图前仍按 windowID 找到了该窗口。不外推为第三方会议或监考平台结果。",
+		}
+	}
+	if r.LiveCapture != nil {
+		passed = r.LiveCapture.Evaluate() && passed
+		r.Limitations = []string{
+			"同一个 SCStream 仅捕获自建合成面板，运行期间切换生产窗口服务的捕获属性。",
+			"完整帧全部保留，按 WindowServer 显示时间与属性确认时间归类，transition-leak 表示保护开启后仍出现可见帧。",
+			"当前是短时单窗口流证据，显示器捕获、长时运行与第三方会议远端仍需分别验收。",
 		}
 	}
 	for _, check := range r.Checks {

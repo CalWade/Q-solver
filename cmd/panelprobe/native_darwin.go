@@ -31,23 +31,26 @@ type nativeProbe struct {
 	driver         *native.Driver
 	handles        map[domain.ID]platform.WindowHandle
 	captureStarted bool
-	streaming      bool
+	mode           captureMode
 	streamFrames   []probe.CaptureFrame
 	streamStatuses map[string]int
 	stopped        bool
 }
 
-func runNative(capture, stream bool) (probe.Report, error) {
+func runNative(mode captureMode) (probe.Report, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	driver := native.New()
-	currentProbe = &nativeProbe{driver: driver, service: application.New(driver), handles: map[domain.ID]platform.WindowHandle{}, before: int(C.QSProbeForeground()), streaming: stream}
+	currentProbe = &nativeProbe{driver: driver, service: application.New(driver), handles: map[domain.ID]platform.WindowHandle{}, before: int(C.QSProbeForeground()), mode: mode}
 	currentProbe.report.System = C.GoString(C.QSProbeSystem())
-	if capture {
+	if mode == captureScreenshot {
 		currentProbe.report.Capture = &probe.CaptureReport{API: probe.ScreenshotAPI}
 	}
-	if stream {
+	if mode == captureFreshStream {
 		currentProbe.report.Capture = &probe.CaptureReport{API: probe.StreamAPI}
+	}
+	if mode == captureLiveStream {
+		currentProbe.report.LiveCapture = &probe.LiveCaptureReport{API: probe.StreamAPI}
 	}
 	C.QSProbeRun()
 	result := currentProbe.report
@@ -145,30 +148,67 @@ func panelProbeReady() {
 	if p.service.Status().Captures != 0 {
 		p.check(fmt.Errorf("capture lease remained active"))
 	}
-	if p.report.Capture != nil {
+	if p.report.Capture != nil || p.report.LiveCapture != nil {
+		if p.report.LiveCapture != nil {
+			p.close("secondary")
+			p.report.LiveCapture.WindowCount = len(p.service.Status().Windows)
+		}
 		p.nextCapture(0)
 	}
 }
 
 func (p *nativeProbe) nextCapture(index int) {
-	if !p.check(p.service.Update(func(policy *domain.Policy) { policy.CaptureProtection = index == 1 })) {
+	if !p.setCapturePolicy(index) {
 		p.stop()
 		return
 	}
 	p.captureStarted = true
 	p.streamFrames = nil
 	p.streamStatuses = map[string]int{}
-	stream := 0
-	if p.streaming {
+	stream, liveMillis := 0, 0
+	if p.mode == captureFreshStream || p.mode == captureLiveStream {
 		stream = 1
 	}
-	C.QSProbeCapture(C.uintptr_t(p.handles["main"]), C.int(index), C.int(stream))
+	if p.mode == captureLiveStream {
+		liveMillis = probe.LivePhaseMillis
+	}
+	C.QSProbeCapture(C.uintptr_t(p.handles["main"]), C.int(index), C.int(stream), C.int(liveMillis))
+}
+
+func (p *nativeProbe) setCapturePolicy(index int) bool {
+	if !p.check(p.service.Update(func(policy *domain.Policy) { policy.CaptureProtection = index == 1 })) {
+		return false
+	}
+	if p.report.LiveCapture != nil {
+		state := C.QSProbeObserve(C.uintptr_t(p.handles["main"]))
+		stages := []string{"baseline-before", "sharing-none", "baseline-after"}
+		p.report.LiveCapture.Transitions = append(p.report.LiveCapture.Transitions, probe.CaptureTransition{
+			Stage: stages[index], AppliedNanos: int64(C.QSProbeHostTime()),
+			PropertySet: state.protectedContent != 0, LocalVisible: state.visible != 0,
+			Alpha: float64(state.alpha),
+		})
+	}
+	return true
+}
+
+//export panelProbeLivePolicy
+func panelProbeLivePolicy(index C.int) C.int {
+	p := currentProbe
+	if p == nil || p.stopped || index < 1 || index > 2 || !p.setCapturePolicy(int(index)) {
+		return 0
+	}
+	return 1
 }
 
 //export panelProbeCaptured
 func panelProbeCaptured(index, width, height C.int, red, green, black, transparent C.double, errorCode C.int) {
 	p := currentProbe
 	if p == nil {
+		return
+	}
+	if p.report.LiveCapture != nil {
+		p.report.LiveCapture.ErrorCode = int(errorCode)
+		p.stop()
 		return
 	}
 	stages := []string{"baseline-before", "sharing-none", "baseline-after"}
@@ -188,18 +228,34 @@ func panelProbeCaptured(index, width, height C.int, red, green, black, transpare
 }
 
 //export panelProbeStreamFrame
-func panelProbeStreamFrame(width, height C.int, red, green, black, transparent C.double, presentation C.int64_t, file *C.char) {
+func panelProbeStreamFrame(width, height C.int, red, green, black, transparent, rawColor C.double, presentation, display, received C.int64_t, file *C.char) {
 	p := currentProbe
 	if p == nil || p.stopped {
 		return
 	}
-	p.streamFrames = append(p.streamFrames, probe.CaptureFrame{CapturePixels: probe.CapturePixels{Width: int(width), Height: int(height), RedRatio: float64(red), GreenRatio: float64(green), BlackRatio: float64(black), TransparentRatio: float64(transparent)}, PresentationNanos: int64(presentation), File: C.GoString(file)})
+	rawRatio := float64(rawColor)
+	p.streamFrames = append(p.streamFrames, probe.CaptureFrame{
+		CapturePixels: probe.CapturePixels{
+			Width: int(width), Height: int(height),
+			RedRatio: float64(red), GreenRatio: float64(green),
+			BlackRatio: float64(black), TransparentRatio: float64(transparent),
+		},
+		PresentationNanos: int64(presentation), DisplayNanos: int64(display),
+		ReceivedNanos: int64(received), File: C.GoString(file),
+		RawColorRatio: &rawRatio,
+	})
 }
 
 //export panelProbeStreamFinished
 func panelProbeStreamFinished(index, duration, outputs, errorCode C.int) {
 	p := currentProbe
 	if p == nil || p.stopped {
+		return
+	}
+	if live := p.report.LiveCapture; live != nil {
+		live.Frames, live.FrameStatuses = p.streamFrames, p.streamStatuses
+		live.OutputCount, live.ErrorCode = int(outputs), int(errorCode)
+		p.stop()
 		return
 	}
 	observation := &probe.StreamObservation{DurationMillis: int(duration), OutputCount: int(outputs), FrameStatuses: p.streamStatuses, Frames: p.streamFrames}
@@ -213,6 +269,22 @@ func panelProbeStreamFinished(index, duration, outputs, errorCode C.int) {
 	panelProbeCaptured(index, C.int(pixels.Width), C.int(pixels.Height), C.double(pixels.RedRatio), C.double(pixels.GreenRatio), C.double(pixels.BlackRatio), C.double(pixels.TransparentRatio), errorCode)
 	if len(p.report.Capture.Samples) > sampleIndex {
 		p.report.Capture.Samples[sampleIndex].Stream = observation
+	}
+}
+
+//export panelProbeStreamLifecycle
+func panelProbeStreamLifecycle(phase C.int, at C.int64_t) {
+	p := currentProbe
+	if p == nil || p.stopped || p.report.LiveCapture == nil {
+		return
+	}
+	live := p.report.LiveCapture
+	if phase == 0 {
+		live.Starts++
+		live.StartedNanos = int64(at)
+	} else if phase == 1 {
+		live.Stops++
+		live.StoppedNanos = int64(at)
 	}
 }
 

@@ -7,6 +7,6 @@ typedef struct {
 } QSProbePixels;
 
 QSProbePixels QSProbeReadImage(CGImageRef image, NSString *filename);
-void QSProbeStartStream(SCContentFilter *filter, SCStreamConfiguration *config, int index);
+void QSProbeStartStream(SCContentFilter *filter, SCStreamConfiguration *config, int index, int liveMillis);
 BOOL QSProbeCancelStream(void);
 void QSProbeEndRun(void);

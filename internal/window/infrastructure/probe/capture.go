@@ -34,8 +34,11 @@ func (p CapturePixels) outcome() string {
 
 type CaptureFrame struct {
 	CapturePixels
-	PresentationNanos int64  `json:"presentationNanos"`
-	File              string `json:"file"`
+	PresentationNanos int64    `json:"presentationNanos"`
+	DisplayNanos      int64    `json:"displayNanos,omitempty"`
+	ReceivedNanos     int64    `json:"receivedNanos,omitempty"`
+	RawColorRatio     *float64 `json:"rawColorRatio,omitempty"`
+	File              string   `json:"file"`
 }
 
 type StreamObservation struct {
@@ -93,19 +96,7 @@ func validStream(s CaptureSample) bool {
 	if stream == nil || stream.DurationMillis < 300 || len(stream.Frames) < 3 || stream.OutputCount < len(stream.Frames) {
 		return false
 	}
-	statuses := stream.FrameStatuses
-	if statuses["complete"] != len(stream.Frames) || statuses["blank"] != 0 || statuses["suspended"] != 0 || statuses["unknown"] != 0 {
-		return false
-	}
-	total := 0
-	for _, name := range []string{"complete", "idle", "blank", "suspended", "started", "stopped", "unknown"} {
-		count, exists := statuses[name]
-		if !exists || count < 0 {
-			return false
-		}
-		total += count
-	}
-	if len(statuses) != 7 || total != stream.OutputCount {
+	if !validFrameStatuses(stream.FrameStatuses, stream.OutputCount, len(stream.Frames)) {
 		return false
 	}
 	var previous int64
@@ -117,4 +108,19 @@ func validStream(s CaptureSample) bool {
 	}
 	span := stream.Frames[len(stream.Frames)-1].PresentationNanos - stream.Frames[0].PresentationNanos
 	return span >= 200_000_000 && s.CapturePixels == stream.Frames[len(stream.Frames)-1].CapturePixels
+}
+
+func validFrameStatuses(statuses map[string]int, outputs, frames int) bool {
+	if statuses["complete"] != frames || statuses["blank"] != 0 || statuses["suspended"] != 0 || statuses["unknown"] != 0 {
+		return false
+	}
+	total := 0
+	for _, name := range []string{"complete", "idle", "blank", "suspended", "started", "stopped", "unknown"} {
+		count, exists := statuses[name]
+		if !exists || count < 0 {
+			return false
+		}
+		total += count
+	}
+	return len(statuses) == 7 && total == outputs
 }

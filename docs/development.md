@@ -25,6 +25,7 @@ make host-probe   # macOS：真实 Wails 宿主进入编辑，再恢复原应用
 make focus-probe  # macOS：独立可见 Chrome 与真实宿主联合观察焦点；不访问外网
 make capture-probe # macOS 14+：只捕获合成窗口，对照保护关闭/开启/再次关闭
 make stream-capture-probe # macOS 14+：分别新建短时视频流，核对所有完整帧
+make live-capture-probe # macOS 14+，同一视频流运行时开启、关闭保护并保留全部帧
 make keyboard-probe # macOS：真实事件过滤、独立 Chrome 与内部编辑器联合测试
 make compatibility # 校验兼容性记录结构，明确输出未测试数量
 ```
@@ -60,7 +61,11 @@ CI 的 Windows/macOS 测试编译并测试对应适配器，但不会安装全�
 
 `stream-capture-probe` 使用相同的自建窗口过滤器，在三个保护状态分别创建短时 `SCStream`。每个流停止完成后输出完整帧的时间戳、像素统计和原始 PNG，记录位于 `.local/reports/stream-capture-probe.json`，图像为 `capture-stream-<阶段>-<帧>.png`。每阶段至少需要 3 个完整帧且覆盖 200 毫秒，所有帧的结果都须一致。流启动后另外等待图像就绪，最多 3 秒。只收到 idle、暂停、未知状态或没有完整帧会失败，任何已采样可见帧都不能被最后一张透明图掩盖。该入口不捕获显示器、其他应用或音频。
 
-捕获输出与像素解释都固定 sRGB，避免显示器色彩空间导致基线误判。此项单独验证新建短时单窗口流，同一个流中途切换属性与长期运行仍需另测。
+捕获输出与像素解释都固定 sRGB，避免显示器色彩空间导致基线误判。此项单独验证新建短时单窗口流。
+
+`live-capture-probe` 在生命周期检查后关闭额外测试窗口，按生产的单窗口形态只启动、停止一次 SCStream，保持原有过滤器，三个阶段各至少持续 2 秒。报告位于 `.local/reports/live-capture-probe.json`，原始帧为 `capture-live-<序号>.png`。每次生产窗口属性确认都记录本地可见性和 CoreMedia host time，每个完整帧保留 WindowServer 显示时间、接收时间及原始缓冲内非零 RGB 像素比例。窗口保护切换中途保持采集，全部帧按生成时间归类，排队中的旧帧仍保留在原始时间线内。
+
+每个阶段至少有 3 个完整帧且时间跨度达到 1.5 秒。前后基线必须以连续三帧可见内容结束。`liveCapture.completed` 表示实验完整，`protectedWindowOutcome=transition-leak` 表示保护开启后仍采到可见帧，`visible` 表示该阶段全部可见，`transparent-with-data` 表示 Alpha 透明但原始 RGB 非零。正常退出与实验完成都须结合结果字段读取。该入口使用短时单窗口流，长时运行、显示器与第三方远端分别验收。
 
 `keyboard-probe` 需要当前身份已有辅助功能与事件投递权限。合成按键经过实际 macOS session event tap、生产输入服务和独立 Chrome/WKWebView。诊断监听只处理本轮随机标记的事件，服务使用本地动作计数器。原生侧和独立接收端共同验证十一组场景，另有异常断开及主动切换自有浏览器的用例，确认系统监听被移除、前台变化会终止投递。正向场景需要测试浏览器持续处于前台。
 

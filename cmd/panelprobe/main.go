@@ -9,16 +9,43 @@ import (
 	"path/filepath"
 )
 
+type captureMode int
+
+const (
+	captureNone captureMode = iota
+	captureScreenshot
+	captureFreshStream
+	captureLiveStream
+)
+
+func selectCaptureMode(screenshot, stream, live bool) (captureMode, error) {
+	selected := captureNone
+	for _, option := range []struct {
+		enabled bool
+		mode    captureMode
+	}{{screenshot, captureScreenshot}, {stream, captureFreshStream}, {live, captureLiveStream}} {
+		if option.enabled {
+			if selected != captureNone {
+				return captureNone, fmt.Errorf("select one capture method per diagnostic")
+			}
+			selected = option.mode
+		}
+	}
+	return selected, nil
+}
+
 func main() {
 	output := flag.String("output", ".local/reports/panel-probe.json", "native observation report")
 	capture := flag.Bool("capture", false, "compare capture of the owned synthetic window with protection off/on/off")
 	stream := flag.Bool("capture-stream", false, "compare short SCStream sessions of the owned window with protection off/on/off")
+	live := flag.Bool("capture-live", false, "toggle protection while the same owned-window SCStream keeps running")
 	flag.Parse()
-	if *capture && *stream {
-		fmt.Fprintln(os.Stderr, "select one capture method per diagnostic")
+	mode, err := selectCaptureMode(*capture, *stream, *live)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	report, err := runNative(*capture, *stream)
+	report, err := runNative(mode)
 	if err != nil {
 		report.Errors = append(report.Errors, err.Error())
 	}
@@ -35,6 +62,9 @@ func main() {
 	fmt.Printf("Native panel probe: passed=%t; report=%s\n", passed, *output)
 	if report.Capture != nil {
 		fmt.Printf("ScreenCaptureKit diagnostic completed=%t; protected-window outcome=%s (separate from diagnostic completion)\n", report.Capture.Completed, report.Capture.Outcome)
+	}
+	if report.LiveCapture != nil {
+		fmt.Printf("Live stream diagnostic completed=%t; protected-window outcome=%s\n", report.LiveCapture.Completed, report.LiveCapture.Outcome)
 	}
 	if !passed {
 		os.Exit(1)
