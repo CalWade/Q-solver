@@ -1,4 +1,4 @@
-.PHONY: prepare dev check unit integration e2e build bindings panel-probe host-probe focus-probe capture-probe compatibility
+.PHONY: prepare dev check unit integration e2e build bindings panel-probe host-probe focus-probe capture-probe keyboard-probe compatibility
 prepare:
 	node scripts/run.mjs prepare
 dev:
@@ -8,7 +8,7 @@ check:
 unit: prepare
 	go test -race ./internal/input/... ./internal/window/... ./internal/capture/... ./internal/solve/... ./pkg/config ./pkg/shortcut ./pkg/solution ./pkg/llm ./pkg/broadcast ./pkg/screen ./pkg/state ./app
 	npm --prefix frontend test
-	node --test scripts/framework.test.mjs scripts/toolchain.test.mjs scripts/compatibility.test.mjs scripts/focus-evidence.test.mjs
+	node --test scripts/framework.test.mjs scripts/toolchain.test.mjs scripts/compatibility.test.mjs scripts/focus-evidence.test.mjs scripts/keyboard-evidence.test.mjs
 integration: prepare
 	go test -race ./internal/harness/...
 	node --test scripts/run.test.mjs
@@ -26,5 +26,7 @@ focus-probe:
 	node scripts/run.mjs focus-probe
 capture-probe:
 	node scripts/run.mjs capture-probe
+keyboard-probe:
+	node scripts/run.mjs keyboard-probe
 compatibility:
 	node scripts/compatibility.mjs

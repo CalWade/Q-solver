@@ -80,4 +80,16 @@ Wails 3.1.0 已有 NSPanel 选项，但其 `WebviewPanel.canBecomeKeyWindow` 返
 
 联合验证通过独立阶段协议连接宿主与 Chrome：宿主保持当前阶段，外部浏览器读取自身焦点和事件后才确认继续。协议只用于测试命令，不进入生产业务。关闭 Playwright 的焦点模拟，以系统生成的可信事件验证显式编辑确实导致外部页面失焦。观察器退出、错误确认或超时会结束原生测试并恢复焦点；单元与原生 E2E 都覆盖该清理行为。
 
-版本固定的参考：[Wails 3.1.0 面板实现](https://github.com/wailsapp/wails/blob/v3.1.0/v3/pkg/application/webview_panel_darwin.m)、[Wails 面板选项](https://wails.io/features/windows/options/)、[Apple becomesKeyOnlyIfNeeded](https://developer.apple.com/documentation/appkit/nspanel/becomeskeyonlyifneeded)。
+## 输入与焦点的原生联合验证
+
+保留设置中的文字输入，日常答案浮窗使用截图、快捷键和被动展示。编辑模式显式允许键盘焦点，关闭设置后恢复被动模式。Hammerspoon 1.0.0 的 WebView 通过 `allowKeyboardEntry` 决定 `canBecomeKeyWindow`，其公共接口提供 `allowTextEntry` 开关。这为同一窗口的展示与编辑门控提供了可核对的实现参考。[Hammerspoon 固定版本源码](https://github.com/Hammerspoon/hammerspoon/blob/1.0.0/extensions/webview/libwebview.m)、[公共接口](https://www.hammerspoon.org/docs/hs.webview.html#allowTextEntry)。
+
+原生键盘测试复用输入应用服务与 macOS event tap。诊断入口用随机事件标记限定处理范围，禁止注册全局系统快捷键。独立 Chrome 接收通过系统接口投递的合成按键，测试前从浏览器连接取得接收进程 ID，每次投递核对前台进程。内部编辑阶段则由 WKWebView 接收。生产入口使用完整输入流，领域与应用层共用同一实现。
+
+该测试发现并修复了编辑焦点缓存错误。AppKit 的激活/取焦点通知与查询结果存在过渡时序，缓存曾在面板已取得焦点后仍为 false，导致编辑按键触发业务动作。适配器现在同时跟踪激活完成、激活丢失和 key-window 通知，在主线程更新缓存，并在下一次主线程调度核对实际 key window 与前台应用。失去焦点立即清除缓存。
+
+测试分别核对原生过滤决定、命令队列实际执行和浏览器收到的事件。关闭与异常断开后，通过系统事件监听列表确认本进程的监听数量回到初始值。物理设备、中文输入法和第三方平台验收按兼容性清单推进。
+
+诊断事件源在整轮测试中持续持有，结束时释放，采用 Hammerspoon 事件模块相同的资源生命周期。每个测试包仍保留完整的按下、重复与释放断言，内部编辑还核对选中合成文字后输入字母的实际替换结果。[Hammerspoon 1.0.0 事件实现](https://github.com/Hammerspoon/hammerspoon/blob/1.0.0/extensions/eventtap/libeventtap_event.m)。
+
+其他参考包括 [Wails 3.1.0 面板实现](https://github.com/wailsapp/wails/blob/v3.1.0/v3/pkg/application/webview_panel_darwin.m)、[Wails 面板选项](https://wails.io/features/windows/options/) 和 [Apple becomesKeyOnlyIfNeeded](https://developer.apple.com/documentation/appkit/nspanel/becomeskeyonlyifneeded)。

@@ -3,10 +3,9 @@
 package main
 
 import (
-	"Q-Solver/internal/window/infrastructure/probe"
 	"errors"
 )
 
-func runHost(func(string) error) (probe.HostReport, error) {
-	return probe.HostReport{}, errors.New("hostprobe currently requires macOS and the C toolchain")
+func runHost(func(string) error, bool, int) (hostReport, error) {
+	return hostReport{}, errors.New("hostprobe currently requires macOS and the C toolchain")
 }

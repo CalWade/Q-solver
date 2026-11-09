@@ -24,6 +24,7 @@ make panel-probe  # macOS：短暂显示隔离原生面板，自动验证并关�
 make host-probe   # macOS：真实 Wails 宿主进入编辑，再恢复原应用并关闭
 make focus-probe  # macOS：独立可见 Chrome 与真实宿主联合观察焦点；不访问外网
 make capture-probe # macOS 14+：只捕获合成窗口，对照保护关闭/开启/再次关闭
+make keyboard-probe # macOS：真实事件过滤、独立 Chrome 与内部编辑器联合测试
 make compatibility # 校验兼容性记录结构，明确输出未测试数量
 ```
 
@@ -55,3 +56,11 @@ CI 的 Windows/macOS 测试编译并测试对应适配器，但不会安装全�
 `capture-probe` 需要已有屏幕录制权限，仅预检，不自动请求授权。它复用生产窗口服务设置捕获属性，再使用 `SCScreenshotManager` 的单窗口过滤器只捕获自己的合成面板；找不到该窗口就终止，不回退到显示器或其他窗口。报告位于 `.local/reports/capture-probe.json`，三张原始图像为 `capture-sample-0.png` 至 `capture-sample-2.png`。
 
 该命令成功退出只表示对照完成，必须另外读取 `protectedWindowOutcome`：`visible` 是仍可见，`transparent` 是全透明，`blank` 是近乎全黑，`marker_absent` 只说明标记缺失，`inconclusive` 不能下结论。缺失或失败的基线不能作为保护成功的证据。它未运行持续屏幕流、整屏共享或第三方客户端。
+
+`keyboard-probe` 需要当前身份已有辅助功能与事件投递权限。合成按键经过实际 macOS session event tap、生产输入服务和独立 Chrome/WKWebView。诊断监听只处理本轮随机标记的事件，服务使用本地动作计数器。原生侧和独立接收端共同验证十一组场景，另有异常断开及主动切换自有浏览器的用例，确认系统监听被移除、前台变化会终止投递。正向场景需要测试浏览器持续处于前台。
+
+完整键盘报告位于 `.local/reports/keyboard-browser.json`，原生原始报告位于 `keyboard-host.json`，断开报告位于 `keyboard-disconnected.json`。浏览器进程 ID 从本轮 Playwright 浏览器连接取得，每次系统事件投递前核对目标。普通 check 运行协议与证据判定的单元测试，原生 UI 用例由显式 probe 命令启动。
+
+拥有启动脚本子进程的 Node 控制器可用 IPC 消息 `{ "type": "stop" }` 请求停止。终端使用 Ctrl+C。准备依赖、构建和等待服务就绪期间均处理停止请求，正常停止返回零退出码。已有服务意外退出会停止同组服务并返回失败。
+
+IPC 控制端可观察 `control-ready`、`building` 和 `ready` 消息，最后一项携带本轮服务进程 ID。控制端断开会结束所拥有的服务。命令完成或停止后关闭 IPC 通道，方便父进程等待最终退出。

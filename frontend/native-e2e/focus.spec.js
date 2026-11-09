@@ -1,56 +1,8 @@
 import { test, expect } from '@playwright/test'
-import { spawn } from 'node:child_process'
-import { createInterface } from 'node:readline'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { resolve, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { setTimeout as delay } from 'node:timers/promises'
+import { launchHost, prepareReceiver, root } from './receiver.js'
 import { evaluateFocusProbe } from '../../scripts/focus-evidence.mjs'
-
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-function launchHost(report) {
-  const child = spawn(resolve(root, '.local/bin/hostprobe'), ['-controlled', '-output', `.local/reports/${report}`], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'] })
-  const exit = new Promise(resolve => {
-    child.once('exit', (code, signal) => resolve({ code, signal }))
-    child.once('error', error => resolve({ code: -1, error: error.message }))
-  })
-  let output = ''
-  child.stderr.on('data', chunk => { output += chunk })
-  child.stdout.on('data', chunk => { output += chunk })
-  child.stdin.on('error', error => { output += error.message })
-  const lines = createInterface({ input: child.stdout })
-  const stages = []
-  lines.on('line', line => {
-    try { const value = JSON.parse(line); if (value.type === 'native-stage') stages.push(value.stage) } catch {}
-  })
-  return { child, exit, stages, output: () => output, async close() {
-    child.stdin.end()
-    if (child.exitCode === null && child.signalCode === null) {
-      const timeout = new AbortController()
-      try {
-        const stopped = await Promise.race([exit.then(() => true), delay(12000, false, { signal: timeout.signal })])
-        if (!stopped) { child.kill('SIGKILL'); await exit }
-      } finally { timeout.abort() }
-    }
-    lines.close()
-  } }
-}
-
-async function prepareReceiver(page, context) {
-  await context.route('**/*', route => route.abort())
-  // Playwright enables focus emulation by default. Keeping it enabled would
-  // make document.hasFocus() unsuitable as evidence of operating-system focus.
-  const cdp = await context.newCDPSession(page)
-  await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: false })
-  await page.setContent(`<!doctype html><meta charset="utf-8"><title>Q-solver isolated focus receiver</title><h1>独立焦点接收页面</h1><p>仅记录本地测试的焦点和可见性事件，不连接会议或笔试平台。</p><script>
-  window.focusEvents=[];
-  for(const type of ['focus','blur']) window.addEventListener(type,e=>focusEvents.push({type, trusted:e.isTrusted, at:performance.now()}));
-  for(const type of ['visibilitychange','fullscreenchange']) document.addEventListener(type,e=>focusEvents.push({type, trusted:e.isTrusted, at:performance.now(), visibility:document.visibilityState}));
-  </script>`)
-  await page.bringToFront()
-  await expect.poll(() => page.evaluate(() => document.hasFocus())).toBe(true)
-  await page.evaluate(() => { window.focusEvents = [] })
-}
 
 test('independent Chrome observes passive retention, explicit blur and return', async ({ page, context, browser }) => {
   await prepareReceiver(page, context)

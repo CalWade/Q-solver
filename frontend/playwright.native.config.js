@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: './native-e2e',
+  testMatch: 'focus.spec.js',
   workers: 1,
   retries: 0,
   timeout: 60000,

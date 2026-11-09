@@ -41,9 +41,19 @@ type Driver struct {
 	seed          []domain.Key
 	registrations map[string]*registration
 	listeners     sync.WaitGroup
+	diagnosticTag uint64
 }
 
 func New() application.Driver { return &Driver{} }
+
+// NewTaggedDiagnostic scopes a native integration check to its own synthetic
+// events. Production callers use New, which handles the full input stream.
+func NewTaggedDiagnostic(tag uint64) (application.Driver, error) {
+	if tag == 0 {
+		return nil, fmt.Errorf("diagnostic input requires a nonzero event tag")
+	}
+	return &Driver{diagnosticTag: tag}, nil
+}
 func RequestPermission() bool { return bool(C.qs_input_permission(C.bool(true))) }
 
 func (d *Driver) Start(callbacks application.Callbacks) (application.Capabilities, error) {
@@ -52,7 +62,7 @@ func (d *Driver) Start(callbacks application.Callbacks) (application.Capabilitie
 	d.ready, d.done = make(chan struct{}), make(chan struct{})
 	d.seed = nil
 	d.handle = cgo.NewHandle(d)
-	d.context = C.qs_input_create(C.uintptr_t(d.handle))
+	d.context = C.qs_input_create(C.uintptr_t(d.handle), C.uint64_t(d.diagnosticTag))
 	if d.context == nil {
 		d.handle.Delete()
 		close(d.done)
@@ -78,6 +88,9 @@ func (d *Driver) CanRegister(binding domain.Binding) bool {
 }
 
 func (d *Driver) Apply(plan application.NativePlan) error {
+	if d.diagnosticTag != 0 && len(plan.Bindings) != 0 {
+		return fmt.Errorf("diagnostic input must use scoped event filtering without system hotkey registration")
+	}
 	if err := validatePlan(plan, d.CanRegister); err != nil {
 		return err
 	}

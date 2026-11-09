@@ -1,0 +1,1756 @@
+{
+  "recordedAt": "2026-11-09T04:32:35.676Z",
+  "browser": "156.0.8078.80",
+  "observations": [
+    {
+      "id": "baseline-left",
+      "focused": true,
+      "focusEmulationDisabled": true,
+      "events": [
+        {
+          "type": "keydown",
+          "code": "MetaLeft",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keydown",
+          "code": "KeyA",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyA",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "MetaLeft",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keydown",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        }
+      ]
+    },
+    {
+      "id": "protected-left",
+      "focused": true,
+      "focusEmulationDisabled": true,
+      "events": [
+        {
+          "type": "keydown",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        }
+      ]
+    },
+    {
+      "id": "release-order-repeat",
+      "focused": true,
+      "focusEmulationDisabled": true,
+      "events": [
+        {
+          "type": "keydown",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        }
+      ]
+    },
+    {
+      "id": "baseline-right",
+      "focused": true,
+      "focusEmulationDisabled": true,
+      "events": [
+        {
+          "type": "keydown",
+          "code": "MetaRight",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keydown",
+          "code": "KeyA",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyA",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "MetaRight",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keydown",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        }
+      ]
+    },
+    {
+      "id": "unselected-right",
+      "focused": true,
+      "focusEmulationDisabled": true,
+      "events": [
+        {
+          "type": "keydown",
+          "code": "MetaRight",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keydown",
+          "code": "KeyA",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyA",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "MetaRight",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keydown",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        }
+      ]
+    },
+    {
+      "id": "both-sides",
+      "focused": true,
+      "focusEmulationDisabled": true,
+      "events": [
+        {
+          "type": "keydown",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        }
+      ]
+    },
+    {
+      "id": "untagged-control",
+      "focused": true,
+      "focusEmulationDisabled": true,
+      "events": [
+        {
+          "type": "keydown",
+          "code": "MetaLeft",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keydown",
+          "code": "KeyA",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyA",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "MetaLeft",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keydown",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        }
+      ]
+    },
+    {
+      "id": "protection-off",
+      "focused": true,
+      "focusEmulationDisabled": true,
+      "events": [
+        {
+          "type": "keydown",
+          "code": "MetaLeft",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keydown",
+          "code": "KeyA",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyA",
+          "repeat": false,
+          "meta": true,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "MetaLeft",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keydown",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        }
+      ]
+    },
+    {
+      "id": "own-editor",
+      "focused": false,
+      "focusEmulationDisabled": true,
+      "events": []
+    },
+    {
+      "id": "stale-editor-intent",
+      "focused": true,
+      "focusEmulationDisabled": true,
+      "events": [
+        {
+          "type": "keydown",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        }
+      ]
+    },
+    {
+      "id": "restored-protection",
+      "focused": true,
+      "focusEmulationDisabled": true,
+      "events": [
+        {
+          "type": "keydown",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        },
+        {
+          "type": "keyup",
+          "code": "KeyB",
+          "repeat": false,
+          "meta": false,
+          "trusted": true
+        }
+      ]
+    }
+  ],
+  "native": {
+    "system": "Version 27.0 (Build 26A428)",
+    "host": "Wails v2.12.0 with pinned passive-panel patch",
+    "pageReady": true,
+    "textRoundTrip": true,
+    "observations": [
+      {
+        "stage": "startup-passive",
+        "panel": true,
+        "nonActivating": true,
+        "hasEditingGate": true,
+        "canBecomeKey": false,
+        "key": false,
+        "foregroundIsApp": false,
+        "foregroundRestored": true
+      },
+      {
+        "stage": "explicit-editor",
+        "panel": true,
+        "nonActivating": true,
+        "hasEditingGate": true,
+        "canBecomeKey": true,
+        "key": true,
+        "foregroundIsApp": true,
+        "foregroundRestored": false
+      },
+      {
+        "stage": "returned-passive",
+        "panel": true,
+        "nonActivating": true,
+        "hasEditingGate": true,
+        "canBecomeKey": false,
+        "key": false,
+        "foregroundIsApp": false,
+        "foregroundRestored": true
+      }
+    ],
+    "checks": [
+      {
+        "name": "real Wails page and bridge ready",
+        "passed": true
+      },
+      {
+        "name": "explicit editor DOM focus and text round trip",
+        "passed": true
+      },
+      {
+        "name": "startup-passive",
+        "passed": true
+      },
+      {
+        "name": "explicit-editor",
+        "passed": true
+      },
+      {
+        "name": "returned-passive",
+        "passed": true
+      },
+      {
+        "name": "all host transitions observed",
+        "passed": true
+      }
+    ],
+    "limitations": [
+      "运行固定补丁的真实 Wails 2 宿主与生产窗口管理器；没有调用模型或真实平台账号。",
+      "文本由隔离页面程序写入，用于验证 WebView 焦点及桥接；不是物理按键或中文输入法验收。",
+      "没有捕获屏幕或会议远端画面，也未验证外部浏览器的监测事件。"
+    ],
+    "keyboard": {
+      "filtering": true,
+      "stopped": true,
+      "listenerReleased": true,
+      "nativeTapsBefore": 0,
+      "nativeTapsAfter": 0,
+      "scope": "tagged CGEvent through session event tap",
+      "cases": [
+        {
+          "id": "baseline-left",
+          "events": [
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 4,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 4,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 4,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            }
+          ],
+          "actions": null,
+          "foregroundRetained": true,
+          "focus": {
+            "appActive": false,
+            "appKeyWindow": false,
+            "keyWindows": 0,
+            "foreground": false
+          }
+        },
+        {
+          "id": "protected-left",
+          "events": [
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "action": "fixture-capture",
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            }
+          ],
+          "actions": [
+            "fixture-capture"
+          ],
+          "foregroundRetained": true,
+          "focus": {
+            "appActive": false,
+            "appKeyWindow": false,
+            "keyWindows": 0,
+            "foreground": false
+          }
+        },
+        {
+          "id": "release-order-repeat",
+          "events": [
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "action": "fixture-capture",
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": true,
+                "repeat": true,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": true,
+                "repeat": true,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            }
+          ],
+          "actions": [
+            "fixture-capture"
+          ],
+          "foregroundRetained": true,
+          "focus": {
+            "appActive": false,
+            "appKeyWindow": false,
+            "keyWindows": 0,
+            "foreground": false
+          }
+        },
+        {
+          "id": "baseline-right",
+          "events": [
+            {
+              "event": {
+                "key": "MetaRight",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 8,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 8,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 8,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "MetaRight",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            }
+          ],
+          "actions": [],
+          "foregroundRetained": true,
+          "focus": {
+            "appActive": false,
+            "appKeyWindow": false,
+            "keyWindows": 0,
+            "foreground": false
+          }
+        },
+        {
+          "id": "unselected-right",
+          "events": [
+            {
+              "event": {
+                "key": "MetaRight",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 8,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 8,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 8,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "MetaRight",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            }
+          ],
+          "actions": [],
+          "foregroundRetained": true,
+          "focus": {
+            "appActive": false,
+            "appKeyWindow": false,
+            "keyWindows": 0,
+            "foreground": false
+          }
+        },
+        {
+          "id": "both-sides",
+          "events": [
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "MetaRight",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "action": "fixture-capture",
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "MetaRight",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            }
+          ],
+          "actions": [
+            "fixture-capture"
+          ],
+          "foregroundRetained": true,
+          "focus": {
+            "appActive": false,
+            "appKeyWindow": false,
+            "keyWindows": 0,
+            "foreground": false
+          }
+        },
+        {
+          "id": "untagged-control",
+          "events": [
+            {
+              "event": {
+                "key": "KeyB",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            }
+          ],
+          "actions": [],
+          "foregroundRetained": true,
+          "focus": {
+            "appActive": false,
+            "appKeyWindow": false,
+            "keyWindows": 0,
+            "foreground": false
+          }
+        },
+        {
+          "id": "protection-off",
+          "events": [
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 4,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 4,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 4,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            }
+          ],
+          "actions": [],
+          "foregroundRetained": true,
+          "focus": {
+            "appActive": false,
+            "appKeyWindow": false,
+            "keyWindows": 0,
+            "foreground": false
+          }
+        },
+        {
+          "id": "own-editor",
+          "events": [
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": true
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 4,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": true
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 4,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": true
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 2,
+                "visibleSides": 4,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": true
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": true
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": true
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            }
+          ],
+          "actions": [],
+          "foregroundRetained": true,
+          "editor": {
+            "events": [
+              {
+                "code": "MetaLeft",
+                "type": "keydown",
+                "repeat": false,
+                "meta": true,
+                "trusted": true
+              },
+              {
+                "code": "KeyA",
+                "type": "keydown",
+                "repeat": false,
+                "meta": true,
+                "trusted": true
+              },
+              {
+                "code": "MetaLeft",
+                "type": "keyup",
+                "repeat": false,
+                "meta": false,
+                "trusted": true
+              },
+              {
+                "code": "KeyB",
+                "type": "keydown",
+                "repeat": false,
+                "meta": false,
+                "trusted": true
+              },
+              {
+                "code": "KeyB",
+                "type": "keyup",
+                "repeat": false,
+                "meta": false,
+                "trusted": true
+              }
+            ],
+            "focused": true,
+            "fixtureReplaced": true
+          },
+          "focus": {
+            "appActive": true,
+            "appKeyWindow": true,
+            "keyWindows": 1,
+            "foreground": true
+          }
+        },
+        {
+          "id": "stale-editor-intent",
+          "events": [
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "action": "fixture-capture",
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            }
+          ],
+          "actions": [
+            "fixture-capture"
+          ],
+          "foregroundRetained": true,
+          "focus": {
+            "appActive": false,
+            "appKeyWindow": false,
+            "keyWindows": 0,
+            "foreground": false
+          }
+        },
+        {
+          "id": "restored-protection",
+          "events": [
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "action": "fixture-capture",
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "KeyA",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": true
+              }
+            },
+            {
+              "event": {
+                "key": "MetaLeft",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": true,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": true,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            },
+            {
+              "event": {
+                "key": "KeyB",
+                "down": false,
+                "repeat": false,
+                "injected": true,
+                "ownWindow": false
+              },
+              "decision": {
+                "suppress": false,
+                "visibleModifiers": 0,
+                "visibleSides": 0,
+                "rewriteModifiers": false
+              }
+            }
+          ],
+          "actions": [
+            "fixture-capture"
+          ],
+          "foregroundRetained": true,
+          "focus": {
+            "appActive": false,
+            "appKeyWindow": false,
+            "keyWindows": 0,
+            "foreground": false
+          }
+        }
+      ],
+      "checks": [
+        {
+          "name": "native filtering available",
+          "passed": true
+        },
+        {
+          "name": "native listener stopped",
+          "passed": true
+        },
+        {
+          "name": "native event tap released",
+          "passed": true
+        },
+        {
+          "name": "all input scenarios observed",
+          "passed": true
+        },
+        {
+          "name": "baseline-left",
+          "passed": true
+        },
+        {
+          "name": "protected-left",
+          "passed": true
+        },
+        {
+          "name": "release-order-repeat",
+          "passed": true
+        },
+        {
+          "name": "baseline-right",
+          "passed": true
+        },
+        {
+          "name": "unselected-right",
+          "passed": true
+        },
+        {
+          "name": "both-sides",
+          "passed": true
+        },
+        {
+          "name": "untagged-control",
+          "passed": true
+        },
+        {
+          "name": "protection-off",
+          "passed": true
+        },
+        {
+          "name": "own-editor",
+          "passed": true
+        },
+        {
+          "name": "stale-editor-intent",
+          "passed": true
+        },
+        {
+          "name": "restored-protection",
+          "passed": true
+        }
+      ]
+    }
+  },
+  "errors": [],
+  "passed": true,
+  "checks": [
+    {
+      "name": "native host, input cases and listener cleanup passed",
+      "passed": true
+    },
+    {
+      "name": "all independent receiver cases observed in order",
+      "passed": true
+    },
+    {
+      "name": "baseline-left",
+      "passed": true
+    },
+    {
+      "name": "protected-left",
+      "passed": true
+    },
+    {
+      "name": "release-order-repeat",
+      "passed": true
+    },
+    {
+      "name": "baseline-right",
+      "passed": true
+    },
+    {
+      "name": "unselected-right",
+      "passed": true
+    },
+    {
+      "name": "both-sides",
+      "passed": true
+    },
+    {
+      "name": "untagged-control",
+      "passed": true
+    },
+    {
+      "name": "protection-off",
+      "passed": true
+    },
+    {
+      "name": "own-editor",
+      "passed": true
+    },
+    {
+      "name": "stale-editor-intent",
+      "passed": true
+    },
+    {
+      "name": "restored-protection",
+      "passed": true
+    },
+    {
+      "name": "observer completed",
+      "passed": true
+    }
+  ],
+  "limitations": [
+    "由带标记的 CGEvent 软件事件驱动，经过真实 session event tap、应用服务和独立 Chrome/WKWebView。",
+    "诊断驱动仅处理带匹配标记的事件。物理设备、输入法和第三方平台另行验证。"
+  ]
+}

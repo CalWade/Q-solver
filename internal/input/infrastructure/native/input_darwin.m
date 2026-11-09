@@ -13,6 +13,7 @@ typedef struct {
     CFMachPortRef tap;
     CFRunLoopRef loop;
     uintptr_t handle;
+    uint64_t diagnosticTag;
 } QSInputContext;
 
 static atomic_bool qsOwnWindow;
@@ -21,6 +22,21 @@ static NSMutableArray *qsFocusObservers;
 static void qsOnMain(dispatch_block_t block) {
     if ([NSThread isMainThread]) block();
     else dispatch_sync(dispatch_get_main_queue(), block);
+}
+
+// AppKit can send key-window notifications before its application-wide key
+// reference has settled. Read the owned windows after the transition as well.
+static void qsRefreshOwnInputFocus(void) {
+    bool focused = false;
+    if (NSApp.active && NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier == NSProcessInfo.processInfo.processIdentifier) {
+        for (NSWindow *window in NSApp.windows) {
+            if (window.keyWindow) {
+                focused = true;
+                break;
+            }
+        }
+    }
+    atomic_store(&qsOwnWindow, focused);
 }
 
 bool qs_input_permission(bool prompt) {
@@ -49,6 +65,9 @@ static CGEventRef qsFilter(CGEventTapProxy proxy, CGEventType type, CGEventRef e
         goQSInputFailed(context->handle);
         CGEventTapEnable(context->tap, false);
         CFRunLoopStop(context->loop);
+        return event;
+    }
+    if (context->diagnosticTag && (uint64_t)CGEventGetIntegerValueField(event, kCGEventSourceUserData) != context->diagnosticTag) {
         return event;
     }
     uint32_t key = (uint32_t)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
@@ -88,11 +107,12 @@ static CGEventRef qsFilter(CGEventTapProxy proxy, CGEventType type, CGEventRef e
     return event;
 }
 
-void *qs_input_create(uintptr_t handle) {
+void *qs_input_create(uintptr_t handle, uint64_t diagnosticTag) {
     if (!qs_input_permission(false)) return NULL;
     QSInputContext *context = calloc(1, sizeof(QSInputContext));
     if (!context) return NULL;
     context->handle = handle;
+    context->diagnosticTag = diagnosticTag;
     CGEventMask mask = CGEventMaskBit(kCGEventKeyDown) | CGEventMaskBit(kCGEventKeyUp) |
         CGEventMaskBit(kCGEventFlagsChanged) | CGEventMaskBit(kCGEventOtherMouseDown) | CGEventMaskBit(kCGEventOtherMouseUp);
     context->tap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, mask, qsFilter, context);
@@ -100,13 +120,18 @@ void *qs_input_create(uintptr_t handle) {
     qsOnMain(^{
         qsFocusObservers = [[NSMutableArray alloc] init];
         NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
-        for (NSString *name in @[NSWindowDidBecomeKeyNotification, NSWindowDidResignKeyNotification, NSApplicationDidResignActiveNotification]) {
+        for (NSString *name in @[NSWindowDidBecomeKeyNotification, NSWindowDidResignKeyNotification, NSApplicationDidBecomeActiveNotification, NSApplicationDidResignActiveNotification]) {
             id observer = [center addObserverForName:name object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
-                atomic_store(&qsOwnWindow, NSApp.keyWindow != nil);
+                if ([note.name isEqual:NSWindowDidResignKeyNotification] || [note.name isEqual:NSApplicationDidResignActiveNotification]) {
+                    atomic_store(&qsOwnWindow, false);
+                } else {
+                    qsRefreshOwnInputFocus();
+                }
+                dispatch_async(dispatch_get_main_queue(), ^{ qsRefreshOwnInputFocus(); });
             }];
             [qsFocusObservers addObject:observer];
         }
-        atomic_store(&qsOwnWindow, NSApp.keyWindow != nil);
+        qsRefreshOwnInputFocus();
     });
     return context;
 }
@@ -117,8 +142,10 @@ void qs_input_run(void *value) {
     CFRetain(context->loop);
     CFRunLoopSourceRef source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, context->tap, 0);
     CFRunLoopAddSource(context->loop, source, kCFRunLoopCommonModes);
-    for (uint32_t key = 0; key < 128; key++) {
-        if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, key)) goQSInputSeed(context->handle, key);
+    if (!context->diagnosticTag) {
+        for (uint32_t key = 0; key < 128; key++) {
+            if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, key)) goQSInputSeed(context->handle, key);
+        }
     }
     CGEventTapEnable(context->tap, true);
     goQSInputReady(context->handle);

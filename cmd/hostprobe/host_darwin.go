@@ -33,10 +33,12 @@ static const char *QSHostSystem(void) { return NSProcessInfo.processInfo.operati
 import "C"
 
 import (
+	inputprobe "Q-Solver/internal/input/infrastructure/probe"
 	"Q-Solver/internal/window/infrastructure/probe"
 	"Q-Solver/pkg/platform"
 	"Q-Solver/pkg/state"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -51,12 +53,14 @@ func init() { runtime.LockOSThread() }
 
 type hostProbe struct {
 	before     int
-	report     probe.HostReport
+	report     hostReport
 	manager    *state.StateManager
 	pageReady  chan struct{}
 	textResult chan bool
 	done       chan struct{}
 	observer   func(string) error
+	keyboard   bool
+	keyResult  chan inputprobe.EditorObservation
 }
 
 func (p *hostProbe) acknowledge(stage string) bool {
@@ -110,6 +114,24 @@ func (p *hostProbe) exercise(ctx context.Context) {
 	if !p.acknowledge("startup-passive") {
 		return
 	}
+	var keyboard *keyboardRunner
+	if p.keyboard {
+		var err error
+		keyboard, err = newKeyboardRunner(p)
+		if keyboard != nil {
+			defer keyboard.close()
+		}
+		if err != nil {
+			p.report.Errors = append(p.report.Errors, err.Error())
+			return
+		}
+		for _, scenario := range inputprobe.PassiveScenarios() {
+			if err := keyboard.run(scenario); err != nil {
+				p.report.Errors = append(p.report.Errors, err.Error())
+				return
+			}
+		}
+	}
 	if err := p.manager.RestoreFocus(); err != nil {
 		p.report.Errors = append(p.report.Errors, err.Error())
 	}
@@ -123,6 +145,12 @@ func (p *hostProbe) exercise(ctx context.Context) {
 	case <-time.After(3 * time.Second):
 		p.report.Errors = append(p.report.Errors, "editor bridge timed out")
 	}
+	if keyboard != nil {
+		if err := keyboard.run(inputprobe.EditorScenario()); err != nil {
+			p.report.Errors = append(p.report.Errors, err.Error())
+			return
+		}
+	}
 	if !p.acknowledge("explicit-editor") {
 		return
 	}
@@ -131,9 +159,21 @@ func (p *hostProbe) exercise(ctx context.Context) {
 	}
 	p.poll("returned-passive", func(o probe.HostObservation) bool { return !o.CanBecomeKey && !o.Key && o.ForegroundRestored })
 	p.acknowledge("returned-passive")
+	if keyboard != nil {
+		if err := keyboard.run(inputprobe.StaleEditorScenario()); err != nil {
+			p.report.Errors = append(p.report.Errors, err.Error())
+			return
+		}
+		if err := keyboard.run(inputprobe.RestoredScenario()); err != nil {
+			p.report.Errors = append(p.report.Errors, err.Error())
+		}
+	}
 }
-func runHost(observer func(string) error) (probe.HostReport, error) {
-	p := &hostProbe{before: int(C.QSHostForeground()), manager: state.NewStateManager(), pageReady: make(chan struct{}, 1), textResult: make(chan bool, 1), done: make(chan struct{}), observer: observer}
+func runHost(observer func(string) error, keyboard bool, receiverPID int) (hostReport, error) {
+	p := &hostProbe{before: int(C.QSHostForeground()), manager: state.NewStateManager(), pageReady: make(chan struct{}, 1), textResult: make(chan bool, 1), done: make(chan struct{}), observer: observer, keyboard: keyboard, keyResult: make(chan inputprobe.EditorObservation, 1)}
+	if keyboard {
+		p.before = receiverPID
+	}
 	p.report.System = C.GoString(C.QSHostSystem())
 	p.report.Host = "Wails v2.12.0 with pinned passive-panel patch"
 	err := wails.Run(&options.App{Title: "Q-solver isolated host check", Width: 460, Height: 220, StartHidden: true,
@@ -152,6 +192,23 @@ func runHost(observer func(string) error) (probe.HostReport, error) {
 				default:
 				}
 			})
+			wailsruntime.EventsOn(ctx, "probe-native-keys", func(values ...interface{}) {
+				if len(values) != 1 {
+					return
+				}
+				data, err := json.Marshal(values[0])
+				if err != nil {
+					return
+				}
+				var observation inputprobe.EditorObservation
+				if json.Unmarshal(data, &observation) != nil {
+					return
+				}
+				select {
+				case p.keyResult <- observation:
+				default:
+				}
+			})
 			// Starting here also bounds a failed page load; OnDomReady would
 			// never fire in that case and leave the isolated host running.
 			go p.exercise(ctx)
@@ -167,8 +224,51 @@ func runHost(observer func(string) error) (probe.HostReport, error) {
 	return p.report, err
 }
 
-const hostHTML = `<!doctype html><html><meta charset="utf-8"><style>body{font:15px -apple-system;background:#182332;color:white;padding:16px}input{padding:10px;width:90%}</style><b>原生宿主隔离自检</b><p>短暂进入编辑模式，然后恢复原应用。</p><input id="editor" aria-label="隔离编辑字段"><script>
-function setup(){if(!window.runtime?.EventsOn){setTimeout(setup,10);return;}
-window.runtime.EventsOn('probe-edit',()=>{const e=document.getElementById('editor');const end=performance.now()+1500;function check(){e.focus();e.value='隔离输入 fixture';const focused=document.activeElement===e&&document.hasFocus();if(!focused&&performance.now()<end){setTimeout(check,10);return;}window.runtime.EventsEmit('probe-text',e.value,focused);}check();});
-window.runtime.EventsEmit('probe-page-ready');}setup();
+const hostHTML = `<!doctype html>
+<html><meta charset="utf-8">
+<style>
+body { font:15px -apple-system; background:#182332; color:white; padding:16px }
+input { padding:10px; width:90% }
+</style>
+<b>原生宿主隔离自检</b>
+<p>短暂进入编辑模式，然后恢复原应用。</p>
+<input id="editor" aria-label="隔离编辑字段">
+<script>
+function setup() {
+  if (!window.runtime?.EventsOn) {
+    setTimeout(setup, 10);
+    return;
+  }
+  const nativeKeys = [];
+  for (const type of ['keydown', 'keyup']) {
+    window.addEventListener(type, event => {
+      if (!['MetaLeft', 'MetaRight', 'KeyA', 'KeyB'].includes(event.code)) return;
+      nativeKeys.push({ type, code:event.code, repeat:event.repeat, meta:event.metaKey, trusted:event.isTrusted });
+      if (type === 'keyup' && event.code === 'KeyB') {
+        window.runtime.EventsEmit('probe-native-keys', {
+          events: [...nativeKeys],
+          fixtureReplaced: document.getElementById('editor').value === 'b',
+          focused: document.hasFocus() && document.activeElement === document.getElementById('editor')
+        });
+      }
+    });
+  }
+  window.runtime.EventsOn('probe-edit', () => {
+    const editor = document.getElementById('editor');
+    const deadline = performance.now() + 1500;
+    function checkFocus() {
+      editor.focus();
+      editor.value = '隔离输入 fixture';
+      const focused = document.activeElement === editor && document.hasFocus();
+      if (!focused && performance.now() < deadline) {
+        setTimeout(checkFocus, 10);
+        return;
+      }
+      window.runtime.EventsEmit('probe-text', editor.value, focused);
+    }
+    checkFocus();
+  });
+  window.runtime.EventsEmit('probe-page-ready');
+}
+setup();
 </script></html>`
