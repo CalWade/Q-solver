@@ -24,6 +24,7 @@ make panel-probe  # macOS：短暂显示隔离原生面板，自动验证并关�
 make host-probe   # macOS：真实 Wails 宿主进入编辑，再恢复原应用并关闭
 make focus-probe  # macOS：独立可见 Chrome 与真实宿主联合观察焦点；不访问外网
 make capture-probe # macOS 14+：只捕获合成窗口，对照保护关闭/开启/再次关闭
+make stream-capture-probe # macOS 14+：分别新建短时视频流，核对所有完整帧
 make keyboard-probe # macOS：真实事件过滤、独立 Chrome 与内部编辑器联合测试
 make compatibility # 校验兼容性记录结构，明确输出未测试数量
 ```
@@ -56,6 +57,10 @@ CI 的 Windows/macOS 测试编译并测试对应适配器，但不会安装全�
 `capture-probe` 需要已有屏幕录制权限，仅预检，不自动请求授权。它复用生产窗口服务设置捕获属性，再使用 `SCScreenshotManager` 的单窗口过滤器只捕获自己的合成面板；找不到该窗口就终止，不回退到显示器或其他窗口。报告位于 `.local/reports/capture-probe.json`，三张原始图像为 `capture-sample-0.png` 至 `capture-sample-2.png`。
 
 该命令成功退出只表示对照完成，必须另外读取 `protectedWindowOutcome`：`visible` 是仍可见，`transparent` 是全透明，`blank` 是近乎全黑，`marker_absent` 只说明标记缺失，`inconclusive` 不能下结论。缺失或失败的基线不能作为保护成功的证据。它未运行持续屏幕流、整屏共享或第三方客户端。
+
+`stream-capture-probe` 使用相同的自建窗口过滤器，在三个保护状态分别创建短时 `SCStream`。每个流停止完成后输出完整帧的时间戳、像素统计和原始 PNG，记录位于 `.local/reports/stream-capture-probe.json`，图像为 `capture-stream-<阶段>-<帧>.png`。每阶段至少需要 3 个完整帧且覆盖 200 毫秒，所有帧的结果都须一致。流启动后另外等待图像就绪，最多 3 秒。只收到 idle、暂停、未知状态或没有完整帧会失败，任何已采样可见帧都不能被最后一张透明图掩盖。该入口不捕获显示器、其他应用或音频。
+
+捕获输出与像素解释都固定 sRGB，避免显示器色彩空间导致基线误判。此项单独验证新建短时单窗口流，同一个流中途切换属性与长期运行仍需另测。
 
 `keyboard-probe` 需要当前身份已有辅助功能与事件投递权限。合成按键经过实际 macOS session event tap、生产输入服务和独立 Chrome/WKWebView。诊断监听只处理本轮随机标记的事件，服务使用本地动作计数器。原生侧和独立接收端共同验证十一组场景，另有异常断开及主动切换自有浏览器的用例，确认系统监听被移除、前台变化会终止投递。正向场景需要测试浏览器持续处于前台。
 

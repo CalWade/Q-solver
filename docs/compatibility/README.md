@@ -65,6 +65,20 @@
 
 结果是该路径返回透明内容。窗口仍能在 `SCShareableContent` 中按 windowID 找到，不能解释为源列表不可枚举。本次也没有测试连续 `SCStream`、整屏捕获或会议远端；不能把“ScreenCaptureKit”当作只有一种固定结果的单一接口。三张图像都是合成测试内容，保留了原始字节，未做图像编辑。
 
+随后运行 `stream-capture-probe`，在相同系统上分别以关闭保护、开启保护、再次关闭保护的状态新建 `SCStream`，每次运行约 0.5 秒。每个流采集到 8 个完整帧，原始记录与 24 张 PNG 见 [视频流证据](evidence/macos-27-sck-stream-2026-11-09/report.json)。合成面板包含小面积动画，使持续更新可以实际被观察。
+
+| 状态 | 完整帧与实际像素 |
+| --- | --- |
+| 关闭保护 | 8 帧均含红绿基线，390×170 |
+| sharingType none | 8 帧均为 100% 透明，390×170 |
+| 再次关闭保护 | 8 帧均恢复红绿内容，390×170 |
+
+补齐图像就绪等待与帧状态记录后，短时单窗口流的关闭/开启/关闭对照连续五轮通过。判定要求每阶段至少 3 个完整帧，时间戳严格递增且跨度至少 200 毫秒。缺帧、缺失基线、混入可见帧或流停止失败均不能判为隐藏成功。首次运行因输出色彩空间与图像解码设置不一致而被基线检查拒绝，统一为 sRGB 后完成对照。另一次复测虽然流启动成功，却没有提供完整图像帧，同样记为无法确定。两次失败记录均保留在本机。
+
+流启动确认与图像就绪分别处理，最多等待 3 秒取得足够完整帧。没有图像时仍然失败，不能将黑屏、暂停或缺帧计为透明内容。每次输出的状态数量与完整帧记录相互核对。
+
+这里每个阶段都重新打开采集源，尚未测量已经运行的同一个流中途切换保护、长时采集、显示器捕获及第三方共享接收端。源列表仍可找到窗口。`SCStream` 的完整帧与 idle 状态分别处理，idle 不作为新图像证据。[Apple SCStreamOutput](https://developer.apple.com/documentation/screencapturekit/scstreamoutput)、[帧状态](https://developer.apple.com/documentation/screencapturekit/scstreamframeinfo/status)。
+
 ## 平台矩阵
 
 [matrix.json](matrix.json) 当前有 60 个待测组合：macOS/Windows 各覆盖腾讯会议、飞书会议、钉钉会议、Zoom、Google Meet、Microsoft Teams、企业微信的整屏与单窗口共享；牛客、赛码、HackerRank、Codility 的屏幕共享、被动输出焦点、显式编辑焦点和键盘传播场景。

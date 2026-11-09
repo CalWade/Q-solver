@@ -1,15 +1,56 @@
 package probe
 
-type CaptureSample struct {
-	Stage            string  `json:"stage"`
-	PropertySet      bool    `json:"propertySet"`
+const ScreenshotAPI = "ScreenCaptureKit.SCScreenshotManager / desktopIndependentWindow"
+const StreamAPI = "ScreenCaptureKit.SCStream / desktopIndependentWindow"
+
+type CapturePixels struct {
 	Width            int     `json:"width"`
 	Height           int     `json:"height"`
 	RedRatio         float64 `json:"redRatio"`
 	GreenRatio       float64 `json:"greenRatio"`
 	BlackRatio       float64 `json:"opaqueBlackRatio"`
 	TransparentRatio float64 `json:"transparentRatio"`
-	ErrorCode        int     `json:"errorCode,omitempty"`
+}
+
+func (p CapturePixels) valid() bool {
+	return p.Width > 0 && p.Height > 0 && p.RedRatio >= 0 && p.RedRatio <= 1 && p.GreenRatio >= 0 && p.GreenRatio <= 1 && p.BlackRatio >= 0 && p.BlackRatio <= 1 && p.TransparentRatio >= 0 && p.TransparentRatio <= 1
+}
+
+func (p CapturePixels) outcome() string {
+	if p.RedRatio >= .15 && p.GreenRatio >= .15 {
+		return "visible"
+	}
+	if p.RedRatio > .01 || p.GreenRatio > .01 {
+		return "inconclusive"
+	}
+	if p.TransparentRatio >= .98 {
+		return "transparent"
+	}
+	if p.BlackRatio >= .98 {
+		return "blank"
+	}
+	return "marker_absent"
+}
+
+type CaptureFrame struct {
+	CapturePixels
+	PresentationNanos int64  `json:"presentationNanos"`
+	File              string `json:"file"`
+}
+
+type StreamObservation struct {
+	DurationMillis int            `json:"durationMillis"`
+	OutputCount    int            `json:"outputCount"`
+	FrameStatuses  map[string]int `json:"frameStatuses"`
+	Frames         []CaptureFrame `json:"frames"`
+}
+
+type CaptureSample struct {
+	CapturePixels
+	Stage       string             `json:"stage"`
+	PropertySet bool               `json:"propertySet"`
+	ErrorCode   int                `json:"errorCode,omitempty"`
+	Stream      *StreamObservation `json:"stream,omitempty"`
 }
 
 type CaptureReport struct {
@@ -24,35 +65,56 @@ type CaptureReport struct {
 // and pixel outcome are separate: a missing/failed baseline never means hidden.
 func (r *CaptureReport) Evaluate() bool {
 	r.Outcome = "inconclusive"
-	r.Checks = nil
+	r.Checks = []Check{{"known capture API", r.API == ScreenshotAPI || r.API == StreamAPI}}
 	expected := []string{"baseline-before", "sharing-none", "baseline-after"}
-	complete := len(r.Samples) == len(expected)
+	complete := r.Checks[0].Passed && len(r.Samples) == len(expected)
 	for i, s := range r.Samples {
-		valid := i < len(expected) && s.Stage == expected[i] && s.Width > 0 && s.Height > 0 && s.ErrorCode == 0 && s.RedRatio >= 0 && s.RedRatio <= 1 && s.GreenRatio >= 0 && s.GreenRatio <= 1
+		valid := i < len(expected) && s.Stage == expected[i] && s.CapturePixels.valid() && s.ErrorCode == 0
 		valid = valid && s.PropertySet == (i == 1)
-		valid = valid && s.BlackRatio >= 0 && s.BlackRatio <= 1 && s.TransparentRatio >= 0 && s.TransparentRatio <= 1
 		if i != 1 {
-			valid = valid && s.RedRatio >= .15 && s.GreenRatio >= .15
+			valid = valid && s.outcome() == "visible"
+		}
+		if r.API == StreamAPI {
+			valid = valid && validStream(s)
 		}
 		r.Checks = append(r.Checks, Check{s.Stage, valid})
 		complete = complete && valid
 	}
 	if complete {
-		s := r.Samples[1]
-		switch {
-		case s.RedRatio >= .15 && s.GreenRatio >= .15:
-			r.Outcome = "visible"
-		case s.RedRatio <= .01 && s.GreenRatio <= .01:
-			r.Outcome = "marker_absent"
-			if s.BlackRatio >= .98 {
-				r.Outcome = "blank"
-			}
-			if s.TransparentRatio >= .98 {
-				r.Outcome = "transparent"
-			}
-		}
+		r.Outcome = r.Samples[1].outcome()
 	}
 	r.Completed = complete && r.Outcome != "inconclusive"
 	r.Checks = append(r.Checks, Check{"valid baseline/protected/baseline comparison", r.Completed})
 	return r.Completed
+}
+
+func validStream(s CaptureSample) bool {
+	stream := s.Stream
+	if stream == nil || stream.DurationMillis < 300 || len(stream.Frames) < 3 || stream.OutputCount < len(stream.Frames) {
+		return false
+	}
+	statuses := stream.FrameStatuses
+	if statuses["complete"] != len(stream.Frames) || statuses["blank"] != 0 || statuses["suspended"] != 0 || statuses["unknown"] != 0 {
+		return false
+	}
+	total := 0
+	for _, name := range []string{"complete", "idle", "blank", "suspended", "started", "stopped", "unknown"} {
+		count, exists := statuses[name]
+		if !exists || count < 0 {
+			return false
+		}
+		total += count
+	}
+	if len(statuses) != 7 || total != stream.OutputCount {
+		return false
+	}
+	var previous int64
+	for _, frame := range stream.Frames {
+		if !frame.CapturePixels.valid() || frame.Width != s.Width || frame.Height != s.Height || frame.outcome() != s.outcome() || frame.PresentationNanos <= previous || frame.File == "" {
+			return false
+		}
+		previous = frame.PresentationNanos
+	}
+	span := stream.Frames[len(stream.Frames)-1].PresentationNanos - stream.Frames[0].PresentationNanos
+	return span >= 200_000_000 && s.CapturePixels == stream.Frames[len(stream.Frames)-1].CapturePixels
 }

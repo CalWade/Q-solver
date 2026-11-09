@@ -5,6 +5,7 @@
 #import <ScreenCaptureKit/ScreenCaptureKit.h>
 #import <ImageIO/ImageIO.h>
 #import "native_darwin.h"
+#import "capture_darwin.h"
 
 extern void panelProbeCreated(uintptr_t handle);
 extern void panelProbeReady(void);
@@ -41,7 +42,44 @@ static void captureResult(int index, int width, int height, double red, double g
     captureResultWithMetrics(index, width, height, red, green, errorCode, 0, 0);
 }
 
-void QSProbeCapture(uintptr_t handle, int index) {
+QSProbePixels QSProbeReadImage(CGImageRef image, NSString *filename) {
+    QSProbePixels result = {0};
+    size_t width = CGImageGetWidth(image), height = CGImageGetHeight(image);
+    if (!width || !height) { result.error = -10004; return result; }
+    NSString *directory = @".local/reports";
+    [[NSFileManager defaultManager] createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:nil];
+    NSURL *url = [NSURL fileURLWithPath:[directory stringByAppendingPathComponent:filename]];
+    CGImageDestinationRef destination = CGImageDestinationCreateWithURL((CFURLRef)url, CFSTR("public.png"), 1, NULL);
+    if (!destination) { result.error = -10006; return result; }
+    CGImageDestinationAddImage(destination, image, NULL);
+    BOOL saved = CGImageDestinationFinalize(destination);
+    CFRelease(destination);
+    if (!saved) { result.error = -10006; return result; }
+    CGColorSpaceRef colors = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+    CGContextRef bitmap = CGBitmapContextCreate(NULL, width, height, 8, width * 4, colors, kCGBitmapByteOrder32Big | kCGImageAlphaPremultipliedLast);
+    CGColorSpaceRelease(colors);
+    if (!bitmap) { result.error = -10004; return result; }
+    CGContextDrawImage(bitmap, CGRectMake(0, 0, width, height), image);
+    const unsigned char *pixels = CGBitmapContextGetData(bitmap);
+    size_t red = 0, green = 0, black = 0, transparent = 0, count = width * height;
+    for (size_t p = 0; p < count; p++) {
+        const unsigned char *rgb = pixels + p * 4;
+        if (rgb[3] < 10) transparent++;
+        if (rgb[3] > 245 && rgb[0] < 10 && rgb[1] < 10 && rgb[2] < 10) black++;
+        if (rgb[3] < 180) continue;
+        if (rgb[0] > 180 && rgb[1] < 80 && rgb[2] < 80) red++;
+        if (rgb[1] > 180 && rgb[0] < 80 && rgb[2] < 80) green++;
+    }
+    result.width = (int)width; result.height = (int)height;
+    result.red = (double)red / count; result.green = (double)green / count;
+    result.black = (double)black / count; result.transparent = (double)transparent / count;
+    CGContextRelease(bitmap);
+    return result;
+}
+
+int QSProbeRunning(void) { return probeDelegate && !probeDelegate.finished; }
+
+void QSProbeCapture(uintptr_t handle, int index, int stream) {
     if (!CGPreflightScreenCaptureAccess()) { captureResult(index, 0, 0, 0, 0, -10001); return; }
     if (@available(macOS 14.0, *)) {
         CGWindowID ownedID = (CGWindowID)[(NSWindow *)handle windowNumber];
@@ -61,35 +99,14 @@ void QSProbeCapture(uintptr_t handle, int index) {
                 config.width = 390; config.height = 170;
                 config.showsCursor = NO;
                 config.ignoreShadowsSingleWindow = YES;
-                [SCScreenshotManager captureImageWithFilter:filter configuration:config completionHandler:^(CGImageRef image, NSError *captureError) {
+                if (stream) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        if (QSProbeRunning()) QSProbeStartStream(filter, config, index);
+                    });
+                } else [SCScreenshotManager captureImageWithFilter:filter configuration:config completionHandler:^(CGImageRef image, NSError *captureError) {
                     if (captureError || !image) { captureResult(index, 0, 0, 0, 0, captureError ? (int)captureError.code : -10003); return; }
-                    NSString *directory = @".local/reports";
-                    [[NSFileManager defaultManager] createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:nil];
-                    NSURL *url = [NSURL fileURLWithPath:[directory stringByAppendingPathComponent:[NSString stringWithFormat:@"capture-sample-%d.png", index]]];
-                    CGImageDestinationRef destination = CGImageDestinationCreateWithURL((CFURLRef)url, CFSTR("public.png"), 1, NULL);
-                    if (!destination) { captureResult(index, 0, 0, 0, 0, -10006); return; }
-                    CGImageDestinationAddImage(destination, image, NULL);
-                    BOOL saved = CGImageDestinationFinalize(destination);
-                    CFRelease(destination);
-                    if (!saved) { captureResult(index, 0, 0, 0, 0, -10006); return; }
-                    size_t width = CGImageGetWidth(image), height = CGImageGetHeight(image);
-                    CGColorSpaceRef colors = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-                    CGContextRef bitmap = CGBitmapContextCreate(NULL, width, height, 8, width * 4, colors, kCGBitmapByteOrder32Big | kCGImageAlphaPremultipliedLast);
-                    CGColorSpaceRelease(colors);
-                    if (!bitmap) { captureResult(index, 0, 0, 0, 0, -10004); return; }
-                    CGContextDrawImage(bitmap, CGRectMake(0, 0, width, height), image);
-                    const unsigned char *pixels = CGBitmapContextGetData(bitmap);
-                    size_t red = 0, green = 0, black = 0, transparent = 0, count = width * height;
-                    for (size_t p = 0; p < count; p++) {
-                        const unsigned char *rgb = pixels + p * 4;
-                        if (rgb[3] < 10) transparent++;
-                        if (rgb[3] > 245 && rgb[0] < 10 && rgb[1] < 10 && rgb[2] < 10) black++;
-                        if (rgb[3] < 180) continue;
-                        if (rgb[0] > 180 && rgb[1] < 80 && rgb[2] < 80) red++;
-                        if (rgb[1] > 180 && rgb[0] < 80 && rgb[2] < 80) green++;
-                    }
-                    captureResultWithMetrics(index, (int)width, (int)height, (double)red / count, (double)green / count, 0, (double)black / count, (double)transparent / count);
-                    CGContextRelease(bitmap);
+                    QSProbePixels pixels = QSProbeReadImage(image, [NSString stringWithFormat:@"capture-sample-%d.png", index]);
+                    captureResultWithMetrics(index, pixels.width, pixels.height, pixels.red, pixels.green, pixels.error, pixels.black, pixels.transparent);
                 }];
                 [config release]; [filter release];
             }];
@@ -128,12 +145,18 @@ QSProbeObservation QSProbeObserve(uintptr_t handle) {
 int QSProbeForeground(void) { return NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier; }
 const char *QSProbeSystem(void) { return NSProcessInfo.processInfo.operatingSystemVersionString.UTF8String; }
 void QSProbeTryKey(uintptr_t handle) { [(NSWindow *)handle makeKeyWindow]; }
-void QSProbeStop(void) {
-    probeDelegate.finished = YES;
+void QSProbeEndRun(void) {
     [NSApp stop:nil];
     NSEvent *event = [NSEvent otherEventWithType:NSEventTypeApplicationDefined location:NSZeroPoint
         modifierFlags:0 timestamp:0 windowNumber:0 context:nil subtype:0 data1:0 data2:0];
     [NSApp postEvent:event atStart:NO];
+}
+void QSProbeStop(void) {
+    probeDelegate.finished = YES;
+    if (!QSProbeCancelStream()) { QSProbeEndRun(); return; }
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        if (NSApp.running) QSProbeEndRun();
+    });
 }
 
 @implementation QSProbeDelegate
@@ -144,7 +167,13 @@ void QSProbeStop(void) {
     [configuration.userContentController addScriptMessageHandler:self name:@"fixture"];
     QSProbeWebView *view = [[QSProbeWebView alloc] initWithFrame:panel.contentView.bounds configuration:configuration];
     panel.contentView = view;
-    [view loadHTMLString:@"<!doctype html><meta charset='utf-8'><style>html,body{margin:0;width:100%;height:100%;background:linear-gradient(90deg,#ff0000 50%,#00ff00 50%);font:14px -apple-system}div{padding:14px}</style><div><b>原生面板隔离自检</b><p>仅用合成色块验证，完成后自动关闭。</p></div><script>window.webkit.messageHandlers.fixture.postMessage('ready')</script>" baseURL:nil];
+    NSString *html = @"<!doctype html><meta charset='utf-8'><style>"
+        @"html,body{margin:0;width:100%;height:100%;background:linear-gradient(90deg,#ff0000 50%,#00ff00 50%);font:14px -apple-system}"
+        @"div{padding:14px}i{position:absolute;bottom:4px;left:20px;width:4px;height:4px;background:white;animation:pulse .2s infinite alternate}"
+        @"@keyframes pulse{from{opacity:0}to{opacity:1}}</style>"
+        @"<div><b>原生面板隔离自检</b><p>仅用合成色块验证，完成后自动关闭。</p></div><i></i>"
+        @"<script>window.webkit.messageHandlers.fixture.postMessage('ready')</script>";
+    [view loadHTMLString:html baseURL:nil];
     [view release]; [configuration release];
     panelProbeCreated(handle);
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 20 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{

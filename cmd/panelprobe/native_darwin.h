@@ -13,4 +13,5 @@ int QSProbeForeground(void);
 const char *QSProbeSystem(void);
 void QSProbeTryKey(uintptr_t handle);
 void QSProbeStop(void);
-void QSProbeCapture(uintptr_t handle, int index);
+void QSProbeCapture(uintptr_t handle, int index, int stream);
+int QSProbeRunning(void);

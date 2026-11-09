@@ -4,7 +4,7 @@ package main
 
 /*
 #cgo CFLAGS: -x objective-c -fblocks
-#cgo LDFLAGS: -framework Cocoa -framework WebKit -framework ScreenCaptureKit -framework ImageIO
+#cgo LDFLAGS: -framework Cocoa -framework WebKit -framework ScreenCaptureKit -framework ImageIO -framework CoreMedia -framework CoreVideo
 #include "native_darwin.h"
 */
 import "C"
@@ -31,17 +31,23 @@ type nativeProbe struct {
 	driver         *native.Driver
 	handles        map[domain.ID]platform.WindowHandle
 	captureStarted bool
+	streaming      bool
+	streamFrames   []probe.CaptureFrame
+	streamStatuses map[string]int
 	stopped        bool
 }
 
-func runNative(capture bool) (probe.Report, error) {
+func runNative(capture, stream bool) (probe.Report, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	driver := native.New()
-	currentProbe = &nativeProbe{driver: driver, service: application.New(driver), handles: map[domain.ID]platform.WindowHandle{}, before: int(C.QSProbeForeground())}
+	currentProbe = &nativeProbe{driver: driver, service: application.New(driver), handles: map[domain.ID]platform.WindowHandle{}, before: int(C.QSProbeForeground()), streaming: stream}
 	currentProbe.report.System = C.GoString(C.QSProbeSystem())
 	if capture {
-		currentProbe.report.Capture = &probe.CaptureReport{API: "ScreenCaptureKit.SCScreenshotManager / desktopIndependentWindow"}
+		currentProbe.report.Capture = &probe.CaptureReport{API: probe.ScreenshotAPI}
+	}
+	if stream {
+		currentProbe.report.Capture = &probe.CaptureReport{API: probe.StreamAPI}
 	}
 	C.QSProbeRun()
 	result := currentProbe.report
@@ -150,7 +156,13 @@ func (p *nativeProbe) nextCapture(index int) {
 		return
 	}
 	p.captureStarted = true
-	C.QSProbeCapture(C.uintptr_t(p.handles["main"]), C.int(index))
+	p.streamFrames = nil
+	p.streamStatuses = map[string]int{}
+	stream := 0
+	if p.streaming {
+		stream = 1
+	}
+	C.QSProbeCapture(C.uintptr_t(p.handles["main"]), C.int(index), C.int(stream))
 }
 
 //export panelProbeCaptured
@@ -167,10 +179,51 @@ func panelProbeCaptured(index, width, height C.int, red, green, black, transpare
 		return
 	}
 	state := C.QSProbeObserve(C.uintptr_t(p.handles["main"]))
-	p.report.Capture.Samples = append(p.report.Capture.Samples, probe.CaptureSample{Stage: stages[i], PropertySet: state.protectedContent != 0, Width: int(width), Height: int(height), RedRatio: float64(red), GreenRatio: float64(green), BlackRatio: float64(black), TransparentRatio: float64(transparent), ErrorCode: int(errorCode)})
+	p.report.Capture.Samples = append(p.report.Capture.Samples, probe.CaptureSample{Stage: stages[i], PropertySet: state.protectedContent != 0, CapturePixels: probe.CapturePixels{Width: int(width), Height: int(height), RedRatio: float64(red), GreenRatio: float64(green), BlackRatio: float64(black), TransparentRatio: float64(transparent)}, ErrorCode: int(errorCode)})
 	if errorCode != 0 || i == len(stages)-1 {
 		p.stop()
 		return
 	}
 	p.nextCapture(i + 1)
+}
+
+//export panelProbeStreamFrame
+func panelProbeStreamFrame(width, height C.int, red, green, black, transparent C.double, presentation C.int64_t, file *C.char) {
+	p := currentProbe
+	if p == nil || p.stopped {
+		return
+	}
+	p.streamFrames = append(p.streamFrames, probe.CaptureFrame{CapturePixels: probe.CapturePixels{Width: int(width), Height: int(height), RedRatio: float64(red), GreenRatio: float64(green), BlackRatio: float64(black), TransparentRatio: float64(transparent)}, PresentationNanos: int64(presentation), File: C.GoString(file)})
+}
+
+//export panelProbeStreamFinished
+func panelProbeStreamFinished(index, duration, outputs, errorCode C.int) {
+	p := currentProbe
+	if p == nil || p.stopped {
+		return
+	}
+	observation := &probe.StreamObservation{DurationMillis: int(duration), OutputCount: int(outputs), FrameStatuses: p.streamStatuses, Frames: p.streamFrames}
+	var pixels probe.CapturePixels
+	if len(p.streamFrames) > 0 {
+		pixels = p.streamFrames[len(p.streamFrames)-1].CapturePixels
+	}
+	// The shared callback advances the next stage, so retain this observation
+	// before it resets the accumulator or closes the final window.
+	sampleIndex := len(p.report.Capture.Samples)
+	panelProbeCaptured(index, C.int(pixels.Width), C.int(pixels.Height), C.double(pixels.RedRatio), C.double(pixels.GreenRatio), C.double(pixels.BlackRatio), C.double(pixels.TransparentRatio), errorCode)
+	if len(p.report.Capture.Samples) > sampleIndex {
+		p.report.Capture.Samples[sampleIndex].Stream = observation
+	}
+}
+
+//export panelProbeStreamStatus
+func panelProbeStreamStatus(status, count C.int) {
+	p := currentProbe
+	if p == nil || p.stopped {
+		return
+	}
+	names := []string{"complete", "idle", "blank", "suspended", "started", "stopped", "unknown"}
+	if status >= 0 && int(status) < len(names) {
+		p.streamStatuses[names[int(status)]] = int(count)
+	}
 }

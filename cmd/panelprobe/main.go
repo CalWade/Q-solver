@@ -12,8 +12,13 @@ import (
 func main() {
 	output := flag.String("output", ".local/reports/panel-probe.json", "native observation report")
 	capture := flag.Bool("capture", false, "compare capture of the owned synthetic window with protection off/on/off")
+	stream := flag.Bool("capture-stream", false, "compare short SCStream sessions of the owned window with protection off/on/off")
 	flag.Parse()
-	report, err := runNative(*capture)
+	if *capture && *stream {
+		fmt.Fprintln(os.Stderr, "select one capture method per diagnostic")
+		os.Exit(1)
+	}
+	report, err := runNative(*capture, *stream)
 	if err != nil {
 		report.Errors = append(report.Errors, err.Error())
 	}
