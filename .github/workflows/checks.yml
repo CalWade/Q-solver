@@ -35,7 +35,7 @@ jobs:
       - run: node scripts/compatibility.mjs
       - run: npm run build
         working-directory: frontend
-      - run: go test -race -coverprofile=coverage.out ./...
+      - run: go test -race -coverprofile coverage.out ./...
       - run: node scripts/run.mjs build
       - uses: actions/upload-artifact@v4
         if: always()
