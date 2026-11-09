@@ -19,18 +19,22 @@ type Check struct {
 	Passed bool   `json:"passed"`
 }
 type Report struct {
-	System       string             `json:"system"`
-	WebViewReady bool               `json:"webViewReady"`
-	Observations []Observation      `json:"observations"`
-	Checks       []Check            `json:"checks"`
-	Errors       []string           `json:"errors,omitempty"`
-	Limitations  []string           `json:"limitations"`
-	Capture      *CaptureReport     `json:"capture,omitempty"`
-	LiveCapture  *LiveCaptureReport `json:"liveCapture,omitempty"`
+	System       string              `json:"system"`
+	WebViewReady bool                `json:"webViewReady"`
+	Observations []Observation       `json:"observations"`
+	Checks       []Check             `json:"checks"`
+	Errors       []string            `json:"errors,omitempty"`
+	Limitations  []string            `json:"limitations"`
+	Capture      *CaptureReport      `json:"capture,omitempty"`
+	LiveCapture  *LiveCaptureReport  `json:"liveCapture,omitempty"`
+	Environment  *CaptureEnvironment `json:"environment,omitempty"`
 }
 
 func (r *Report) Evaluate() bool {
 	r.Checks = []Check{{"WKWebView loaded isolated local fixture", r.WebViewReady}}
+	if r.Environment != nil {
+		r.Checks = append(r.Checks, Check{"unlocked graphical desktop available", r.Environment.Available()})
+	}
 	expected := map[string]float64{"shown": 1, "capture-first": 0, "capture-nested": 0, "secondary-during-capture": 0, "first-release": 0, "last-release": 1, "secondary-restored": 1, "recreated": 1}
 	seen := map[string]bool{}
 	for _, o := range r.Observations {
@@ -61,6 +65,13 @@ func (r *Report) Evaluate() bool {
 			"同一个 SCStream 仅捕获自建合成面板，运行期间切换生产窗口服务的捕获属性。",
 			"完整帧全部保留，按 WindowServer 显示时间与属性确认时间归类，transition-leak 表示保护开启后仍出现可见帧。",
 			"当前是短时单窗口流证据，显示器捕获、长时运行与第三方会议远端仍需分别验收。",
+		}
+		if r.LiveCapture.API == DisplayWindowStreamAPI {
+			r.Limitations = []string{
+				"显示器包含窗口过滤器只允许自建窗口，裁剪区域与窗口一致，采集前核对实际窗口归属及过滤器名单。",
+				"完整图像与 idle 通知分别计数，idle 保留上一张完整图像，按接收时间记录实际观察内容。",
+				"此项是仅含自建窗口的显示器过滤器证据，完整桌面与真实会议远端仍需验收。",
+			}
 		}
 	}
 	for _, check := range r.Checks {

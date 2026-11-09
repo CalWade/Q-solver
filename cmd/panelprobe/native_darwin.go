@@ -16,6 +16,7 @@ import (
 	"Q-Solver/internal/window/infrastructure/probe"
 	"Q-Solver/pkg/platform"
 	"fmt"
+	"os"
 	"runtime"
 )
 
@@ -32,17 +33,29 @@ type nativeProbe struct {
 	handles        map[domain.ID]platform.WindowHandle
 	captureStarted bool
 	mode           captureMode
+	displayWindow  bool
 	streamFrames   []probe.CaptureFrame
 	streamStatuses map[string]int
+	streamOutputs  []probe.CaptureOutput
 	stopped        bool
 }
 
-func runNative(mode captureMode) (probe.Report, error) {
+func runNative(mode captureMode, display bool) (probe.Report, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
+	state := C.QSProbeCaptureEnvironment()
+	environment := &probe.CaptureEnvironment{
+		SessionKnown: state.sessionKnown != 0, SessionLocked: state.locked != 0,
+		OnConsole: state.onConsole != 0, DisplaysKnown: state.displaysKnown != 0,
+		ActiveDisplays: int(state.activeDisplays), MainDisplayAsleep: state.asleep != 0,
+	}
+	report := probe.Report{System: C.GoString(C.QSProbeSystem()), Environment: environment}
+	if !environment.Available() {
+		return report, fmt.Errorf("native capture needs an unlocked, awake desktop; locked=%t activeDisplays=%d asleep=%t", environment.SessionLocked, environment.ActiveDisplays, environment.MainDisplayAsleep)
+	}
 	driver := native.New()
-	currentProbe = &nativeProbe{driver: driver, service: application.New(driver), handles: map[domain.ID]platform.WindowHandle{}, before: int(C.QSProbeForeground()), mode: mode}
-	currentProbe.report.System = C.GoString(C.QSProbeSystem())
+	currentProbe = &nativeProbe{driver: driver, service: application.New(driver), handles: map[domain.ID]platform.WindowHandle{}, before: int(C.QSProbeForeground()), mode: mode, displayWindow: display}
+	currentProbe.report = report
 	if mode == captureScreenshot {
 		currentProbe.report.Capture = &probe.CaptureReport{API: probe.ScreenshotAPI}
 	}
@@ -51,6 +64,9 @@ func runNative(mode captureMode) (probe.Report, error) {
 	}
 	if mode == captureLiveStream {
 		currentProbe.report.LiveCapture = &probe.LiveCaptureReport{API: probe.StreamAPI}
+		if display {
+			currentProbe.report.LiveCapture.API = probe.DisplayWindowStreamAPI
+		}
 	}
 	C.QSProbeRun()
 	result := currentProbe.report
@@ -165,6 +181,7 @@ func (p *nativeProbe) nextCapture(index int) {
 	p.captureStarted = true
 	p.streamFrames = nil
 	p.streamStatuses = map[string]int{}
+	p.streamOutputs = nil
 	stream, liveMillis := 0, 0
 	if p.mode == captureFreshStream || p.mode == captureLiveStream {
 		stream = 1
@@ -172,7 +189,33 @@ func (p *nativeProbe) nextCapture(index int) {
 	if p.mode == captureLiveStream {
 		liveMillis = probe.LivePhaseMillis
 	}
-	C.QSProbeCapture(C.uintptr_t(p.handles["main"]), C.int(index), C.int(stream), C.int(liveMillis))
+	display := 0
+	if p.displayWindow {
+		display = 1
+	}
+	C.QSProbeCapture(C.uintptr_t(p.handles["main"]), C.int(index), C.int(stream), C.int(liveMillis), C.int(display))
+}
+
+//export panelProbeDisplaySelected
+func panelProbeDisplaySelected(s *C.QSProbeDisplaySelection) C.int {
+	p := currentProbe
+	if p == nil || p.stopped || !p.displayWindow || p.report.LiveCapture == nil || s == nil {
+		return 0
+	}
+	selection := &probe.DisplayCaptureSelection{
+		ExpectedWindowID: uint32(s.expectedWindow), ActualWindowID: uint32(s.actualWindow),
+		ExpectedOwnerPID: os.Getpid(), ActualOwnerPID: int(s.ownerPID),
+		ExpectedDisplay: uint32(s.expectedDisplay), ActualDisplay: uint32(s.actualDisplay),
+		WindowCount: int(s.windows), DisplayCount: int(s.displays),
+		Window:  probe.CaptureRect{X: float64(s.windowX), Y: float64(s.windowY), Width: float64(s.windowWidth), Height: float64(s.windowHeight)},
+		Display: probe.CaptureRect{X: float64(s.displayX), Y: float64(s.displayY), Width: float64(s.displayWidth), Height: float64(s.displayHeight)},
+		Crop:    probe.CaptureRect{X: float64(s.cropX), Y: float64(s.cropY), Width: float64(s.cropWidth), Height: float64(s.cropHeight)},
+	}
+	p.report.LiveCapture.DisplaySelection = selection
+	if !selection.Valid() {
+		return 0
+	}
+	return 1
 }
 
 func (p *nativeProbe) setCapturePolicy(index int) bool {
@@ -254,6 +297,7 @@ func panelProbeStreamFinished(index, duration, outputs, errorCode C.int) {
 	}
 	if live := p.report.LiveCapture; live != nil {
 		live.Frames, live.FrameStatuses = p.streamFrames, p.streamStatuses
+		live.Outputs = p.streamOutputs
 		live.OutputCount, live.ErrorCode = int(outputs), int(errorCode)
 		p.stop()
 		return
@@ -285,7 +329,26 @@ func panelProbeStreamLifecycle(phase C.int, at C.int64_t) {
 	} else if phase == 1 {
 		live.Stops++
 		live.StoppedNanos = int64(at)
+	} else if phase == 2 {
+		live.DrainedNanos = int64(at)
 	}
+}
+
+//export panelProbeStreamOutput
+func panelProbeStreamOutput(status, frame C.int, presentation, display, received C.int64_t) {
+	p := currentProbe
+	if p == nil || p.stopped || !p.displayWindow {
+		return
+	}
+	names := []string{"complete", "idle", "blank", "suspended", "started", "stopped", "unknown"}
+	name := "unknown"
+	if status >= 0 && int(status) < len(names) {
+		name = names[int(status)]
+	}
+	p.streamOutputs = append(p.streamOutputs, probe.CaptureOutput{
+		Status: name, FrameIndex: int(frame), PresentationNanos: int64(presentation),
+		DisplayNanos: int64(display), ReceivedNanos: int64(received),
+	})
 }
 
 //export panelProbeStreamStatus

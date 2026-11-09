@@ -44,3 +44,15 @@ func TestWholeReportIncludesLiveCaptureCleanupAndEvidence(t *testing.T) {
 		t.Fatal("window observations masked incomplete live capture", r)
 	}
 }
+
+func TestWindowPropertiesCannotMaskAnUnavailableDesktop(t *testing.T) {
+	r := completeReport()
+	r.Environment = &CaptureEnvironment{SessionKnown: true, OnConsole: true, DisplaysKnown: true, ActiveDisplays: 1}
+	if !r.Evaluate() {
+		t.Fatal(r)
+	}
+	r.Environment.SessionLocked = true
+	if r.Evaluate() {
+		t.Fatal("locked desktop was certified by window properties", r)
+	}
+}

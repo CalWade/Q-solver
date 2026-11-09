@@ -34,18 +34,30 @@ func selectCaptureMode(screenshot, stream, live bool) (captureMode, error) {
 	return selected, nil
 }
 
+func validateDisplayFilter(mode captureMode, display bool) error {
+	if display && mode != captureLiveStream {
+		return fmt.Errorf("the display inclusion filter requires live stream diagnostics")
+	}
+	return nil
+}
+
 func main() {
 	output := flag.String("output", ".local/reports/panel-probe.json", "native observation report")
 	capture := flag.Bool("capture", false, "compare capture of the owned synthetic window with protection off/on/off")
 	stream := flag.Bool("capture-stream", false, "compare short SCStream sessions of the owned window with protection off/on/off")
 	live := flag.Bool("capture-live", false, "toggle protection while the same owned-window SCStream keeps running")
+	display := flag.Bool("display-window", false, "use a display inclusion filter restricted to the owned fixture window")
 	flag.Parse()
 	mode, err := selectCaptureMode(*capture, *stream, *live)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	report, err := runNative(mode)
+	if err := validateDisplayFilter(mode, *display); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	report, err := runNative(mode, *display)
 	if err != nil {
 		report.Errors = append(report.Errors, err.Error())
 	}

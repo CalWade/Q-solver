@@ -23,3 +23,14 @@ func TestCaptureModesAreExplicitAndMutuallyExclusive(t *testing.T) {
 		}
 	}
 }
+
+func TestDisplayInclusionIsLimitedToLiveDiagnostics(t *testing.T) {
+	for _, mode := range []captureMode{captureNone, captureScreenshot, captureFreshStream, captureLiveStream} {
+		if err := validateDisplayFilter(mode, false); err != nil {
+			t.Fatal(err)
+		}
+		if err := validateDisplayFilter(mode, true); (err == nil) != (mode == captureLiveStream) {
+			t.Fatalf("unexpected display filter result for mode %v: %v", mode, err)
+		}
+	}
+}

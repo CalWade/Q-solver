@@ -121,21 +121,23 @@ try {
     case 'capture-probe':
     case 'stream-capture-probe':
     case 'live-capture-probe':
+    case 'display-capture-probe':
     case 'keyboard-probe':
     case 'focus-probe': {
       if (process.platform !== 'darwin') throw new Error('The native panel probe currently requires macOS.')
       await mkdir(resolve(root, '.local/bin'), { recursive: true })
-      const target = ['panel-probe', 'capture-probe', 'stream-capture-probe', 'live-capture-probe'].includes(command) ? 'panelprobe' : 'hostprobe'
+      const target = ['panel-probe', 'capture-probe', 'stream-capture-probe', 'live-capture-probe', 'display-capture-probe'].includes(command) ? 'panelprobe' : 'hostprobe'
       const executable = resolve(root, '.local/bin', target)
       await run('go', ['build', '-tags', 'production', '-o', executable, `./cmd/${target}`])
       if (command === 'focus-probe') await run(npm, ['run', 'test:native'], frontend)
       else if (command === 'keyboard-probe') await run(npm, ['run', 'test:keyboard'], frontend)
       else if (command === 'stream-capture-probe') await run(executable, ['-capture-stream', '-output', '.local/reports/stream-capture-probe.json'])
       else if (command === 'live-capture-probe') await run(executable, ['-capture-live', '-output', '.local/reports/live-capture-probe.json'])
+      else if (command === 'display-capture-probe') await run(executable, ['-capture-live', '-display-window', '-output', '.local/reports/display-capture-probe.json'])
       else await run(executable, command === 'capture-probe' ? ['-capture', '-output', '.local/reports/capture-probe.json'] : [])
       break
     }
-    default: throw new Error('Usage: node scripts/run.mjs [prepare|dev|harness|doctor|check|bindings|build|panel-probe|host-probe|focus-probe|capture-probe|stream-capture-probe|live-capture-probe|keyboard-probe]')
+    default: throw new Error('Usage: node scripts/run.mjs [prepare|dev|harness|doctor|check|bindings|build|panel-probe|host-probe|focus-probe|capture-probe|stream-capture-probe|live-capture-probe|display-capture-probe|keyboard-probe]')
   }
 } catch (error) {
   if (!stopRequested) {

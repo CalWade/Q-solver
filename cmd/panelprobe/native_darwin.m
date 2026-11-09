@@ -11,6 +11,7 @@ extern void panelProbeCreated(uintptr_t handle);
 extern void panelProbeReady(void);
 extern void panelProbeTimeout(void);
 extern void panelProbeCaptured(int index, int width, int height, double red, double green, double black, double transparent, int errorCode);
+extern int panelProbeDisplaySelected(QSProbeDisplaySelection *selection);
 
 // Passive output has a strict key-window gate, independent of activation.
 // A production host must put editors in a separate explicit input mode/window.
@@ -79,7 +80,60 @@ QSProbePixels QSProbeReadImage(CGImageRef image, NSString *filename) {
 
 int QSProbeRunning(void) { return probeDelegate && !probeDelegate.finished; }
 
-void QSProbeCapture(uintptr_t handle, int index, int stream, int liveMillis) {
+QSProbeEnvironment QSProbeCaptureEnvironment(void) {
+    QSProbeEnvironment result = {0};
+    CFDictionaryRef session = CGSessionCopyCurrentDictionary();
+    if (session) {
+        NSDictionary *values = (NSDictionary *)session;
+        result.sessionKnown = YES;
+        result.locked = [values[@"CGSSessionScreenIsLocked"] boolValue];
+        result.onConsole = [values[(NSString *)kCGSessionOnConsoleKey] boolValue];
+        CFRelease(session);
+    }
+    uint32_t count = 0;
+    result.displaysKnown = CGGetActiveDisplayList(0, NULL, &count) == kCGErrorSuccess;
+    result.activeDisplays = (int)count;
+    result.asleep = CGDisplayIsAsleep(CGMainDisplayID());
+    return result;
+}
+
+static SCContentFilter *ownedDisplayFilter(SCShareableContent *content, SCWindow *window, SCStreamConfiguration *config, CGWindowID ownedID, int index) {
+    if (@available(macOS 15.2, *)) {
+        SCDisplay *display = nil;
+        for (SCDisplay *candidate in content.displays) {
+            if (CGRectContainsRect(candidate.frame, window.frame)) { display = candidate; break; }
+        }
+        if (!display) { captureResult(index, 0, 0, 0, 0, -10020); return nil; }
+        SCContentFilter *filter = [[SCContentFilter alloc] initWithDisplay:display includingWindows:@[window]];
+        if (!filter) { captureResult(index, 0, 0, 0, 0, -10021); return nil; }
+        filter.includeMenuBar = NO;
+        config.ignoreShadowsDisplay = YES;
+        CGRect windowRect = window.frame, displayRect = display.frame;
+        config.sourceRect = CGRectMake(windowRect.origin.x - displayRect.origin.x, windowRect.origin.y - displayRect.origin.y,
+            windowRect.size.width, windowRect.size.height);
+        CGRect crop = config.sourceRect;
+        SCWindow *actualWindow = filter.includedWindows.firstObject;
+        SCDisplay *actualDisplay = filter.includedDisplays.firstObject;
+        QSProbeDisplaySelection selection = {
+            ownedID, actualWindow.windowID, display.displayID, actualDisplay.displayID,
+            actualWindow.owningApplication.processID, (int)filter.includedWindows.count, (int)filter.includedDisplays.count,
+            windowRect.origin.x, windowRect.origin.y, windowRect.size.width, windowRect.size.height,
+            displayRect.origin.x, displayRect.origin.y, displayRect.size.width, displayRect.size.height,
+            crop.origin.x, crop.origin.y, crop.size.width, crop.size.height
+        };
+        __block BOOL accepted = NO;
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            QSProbeDisplaySelection snapshot = selection;
+            if (QSProbeRunning()) accepted = panelProbeDisplaySelected(&snapshot) != 0;
+        });
+        if (!accepted) { [filter release]; captureResult(index, 0, 0, 0, 0, -10022); return nil; }
+        return filter;
+    }
+    captureResult(index, 0, 0, 0, 0, -10023);
+    return nil;
+}
+
+void QSProbeCapture(uintptr_t handle, int index, int stream, int liveMillis, int displayWindow) {
     if (!CGPreflightScreenCaptureAccess()) { captureResult(index, 0, 0, 0, 0, -10001); return; }
     if (@available(macOS 14.0, *)) {
         CGWindowID ownedID = (CGWindowID)[(NSWindow *)handle windowNumber];
@@ -93,12 +147,17 @@ void QSProbeCapture(uintptr_t handle, int index, int stream, int liveMillis) {
                     if (candidate.windowID == ownedID) { ownedWindow = candidate; break; }
                 }
                 // Never fall back to a display capture or another application's window.
-                if (!ownedWindow) { captureResult(index, 0, 0, 0, 0, -10002); return; }
-                SCContentFilter *filter = [[SCContentFilter alloc] initWithDesktopIndependentWindow:ownedWindow];
+                if (!ownedWindow || ownedWindow.owningApplication.processID != NSProcessInfo.processInfo.processIdentifier) {
+                    captureResult(index, 0, 0, 0, 0, -10002);
+                    return;
+                }
                 SCStreamConfiguration *config = [[SCStreamConfiguration alloc] init];
                 config.width = 390; config.height = 170;
                 config.showsCursor = NO;
                 config.ignoreShadowsSingleWindow = YES;
+                SCContentFilter *filter = displayWindow ? ownedDisplayFilter(content, ownedWindow, config, ownedID, index) :
+                    [[SCContentFilter alloc] initWithDesktopIndependentWindow:ownedWindow];
+                if (!filter) { [config release]; return; }
                 if (stream) {
                     dispatch_async(dispatch_get_main_queue(), ^{
                         if (QSProbeRunning()) QSProbeStartStream(filter, config, index, liveMillis);

@@ -10,6 +10,7 @@ extern void panelProbeStreamFrame(int width, int height, double red, double gree
 extern void panelProbeStreamFinished(int index, int duration, int outputs, int errorCode);
 extern void panelProbeStreamStatus(int status, int count);
 extern void panelProbeStreamLifecycle(int phase, int64_t at);
+extern void panelProbeStreamOutput(int status, int frame, int64_t presentation, int64_t display, int64_t received);
 extern int panelProbeLivePolicy(int index);
 
 typedef struct {
@@ -18,6 +19,11 @@ typedef struct {
     double rawColor;
     char file[64];
 } QSStreamFrame;
+
+typedef struct {
+    int status, frame;
+    int64_t presentation, display, received;
+} QSStreamOutput;
 
 static int64_t timeNanos(CMTime time) {
     if (!CMTIME_IS_NUMERIC(time)) return 0;
@@ -36,16 +42,18 @@ static int64_t monotonicNanos(void) {
     SCStream *_stream;
     dispatch_queue_t _sampleQueue;
     NSMutableArray *_frames;
+    NSMutableArray *_outputEvents;
     int _index, _outputs, _sampleError, _cancelError, _liveMillis;
     int _statuses[7];
     int64_t _startedAt;
-    BOOL _starting, _started, _finishing;
+    BOOL _starting, _started, _finishing, _displayFilter;
 }
 - (instancetype)initWithFilter:(SCContentFilter *)filter configuration:(SCStreamConfiguration *)config index:(int)index liveMillis:(int)liveMillis;
 - (void)start;
 - (void)finish:(int)errorCode;
 - (void)checkSamples;
 - (void)advanceLivePhase;
+- (void)captureCompleteSample:(CMSampleBufferRef)sample output:(QSStreamOutput)output;
 @end
 
 static QSProbeStream *activeStream;
@@ -56,7 +64,9 @@ static QSProbeStream *activeStream;
     if (self) {
         _index = index;
         _liveMillis = liveMillis;
+        _displayFilter = filter.style == SCShareableContentStyleDisplay;
         _frames = [[NSMutableArray alloc] init];
+        _outputEvents = [[NSMutableArray alloc] init];
         _sampleQueue = dispatch_queue_create("qsolver.probe.capture", DISPATCH_QUEUE_SERIAL);
         config.pixelFormat = kCVPixelFormatType_32BGRA;
         config.colorSpaceName = kCGColorSpaceSRGB;
@@ -70,6 +80,7 @@ static QSProbeStream *activeStream;
 - (void)dealloc {
     [_stream release];
     [_frames release];
+    [_outputEvents release];
     dispatch_release(_sampleQueue);
     [super dealloc];
 }
@@ -140,6 +151,7 @@ static QSProbeStream *activeStream;
             if (!finalError) finalError = stopError ? (int)stopError.code : self->_sampleError;
             if (!finalError && self->_frames.count == 0) finalError = -10008;
             int duration = self->_startedAt ? (int)((monotonicNanos() - self->_startedAt) / NSEC_PER_MSEC) : 0;
+            int64_t drainedAt = QSProbeHostTime();
             // The queue barrier drains every output before exporting the batch.
             dispatch_async(dispatch_get_main_queue(), ^{
                 int reportedError = finalError;
@@ -150,12 +162,18 @@ static QSProbeStream *activeStream;
                 activeStream = nil;
                 if (QSProbeRunning()) {
                     if (self->_liveMillis && stoppedAt) panelProbeStreamLifecycle(1, stoppedAt);
+                    if (self->_displayFilter) panelProbeStreamLifecycle(2, drainedAt);
                     for (int status = 0; status < 7; status++) panelProbeStreamStatus(status, self->_statuses[status]);
                     for (NSValue *value in self->_frames) {
                         QSStreamFrame frame;
                         [value getValue:&frame size:sizeof(frame)];
                         panelProbeStreamFrame(frame.pixels.width, frame.pixels.height, frame.pixels.red, frame.pixels.green,
                             frame.pixels.black, frame.pixels.transparent, frame.rawColor, frame.presentation, frame.display, frame.received, frame.file);
+                    }
+                    for (NSValue *value in self->_outputEvents) {
+                        QSStreamOutput output;
+                        [value getValue:&output size:sizeof(output)];
+                        panelProbeStreamOutput(output.status, output.frame, output.presentation, output.display, output.received);
                     }
                     panelProbeStreamFinished(self->_index, duration, self->_outputs, reportedError);
                 } else {
@@ -182,49 +200,56 @@ static QSProbeStream *activeStream;
         NSArray *attachments = (NSArray *)CMSampleBufferGetSampleAttachmentsArray(sample, false);
         NSNumber *status = attachments.count ? attachments[0][SCStreamFrameInfoStatus] : nil;
         NSInteger code = status ? status.integerValue : -1;
-        _statuses[code >= 0 && code < 6 ? code : 6]++;
-        if (!status || status.integerValue != SCFrameStatusComplete) return;
-        if (_sampleError) return;
-        CVPixelBufferRef buffer = CMSampleBufferGetImageBuffer(sample);
-        if (!buffer || CVPixelBufferGetPixelFormatType(buffer) != kCVPixelFormatType_32BGRA ||
-            CVPixelBufferLockBaseAddress(buffer, kCVPixelBufferLock_ReadOnly) != kCVReturnSuccess) {
-            _sampleError = -10009;
-            return;
-        }
-        size_t width = CVPixelBufferGetWidth(buffer), height = CVPixelBufferGetHeight(buffer);
-        size_t stride = CVPixelBufferGetBytesPerRow(buffer);
-        const void *base = CVPixelBufferGetBaseAddress(buffer);
-        CGColorSpaceRef colors = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-        CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, base, stride * height, NULL);
-        CGImageRef image = CGImageCreate(width, height, 8, 32, stride, colors,
-            kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst, provider, NULL, false, kCGRenderingIntentDefault);
-        QSStreamFrame frame = {0};
-        if (_liveMillis) snprintf(frame.file, sizeof(frame.file), "capture-live-%lu.png", (unsigned long)_frames.count);
-        else snprintf(frame.file, sizeof(frame.file), "capture-stream-%d-%lu.png", _index, (unsigned long)_frames.count);
-        if (image) frame.pixels = QSProbeReadImage(image, [NSString stringWithUTF8String:frame.file]);
-        else frame.pixels.error = -10010;
-        if (!frame.pixels.error) {
-            size_t colored = 0;
-            for (size_t row = 0; row < height; row++) {
-                const unsigned char *pixels = (const unsigned char *)base + row * stride;
-                for (size_t col = 0; col < width; col++) {
-                    const unsigned char *bgra = pixels + col * 4;
-                    if (bgra[0] || bgra[1] || bgra[2]) colored++;
-                }
-            }
-            frame.rawColor = (double)colored / (width * height);
-        }
-        frame.presentation = timeNanos(CMSampleBufferGetPresentationTimeStamp(sample));
+        int normalized = code >= 0 && code < 6 ? (int)code : 6;
+        _statuses[normalized]++;
         NSNumber *display = attachments.count ? attachments[0][SCStreamFrameInfoDisplayTime] : nil;
-        if (display) frame.display = timeNanos(CMClockMakeHostTimeFromSystemUnits(display.unsignedLongLongValue));
-        frame.received = received;
-        if (image) CGImageRelease(image);
-        CGDataProviderRelease(provider);
-        CGColorSpaceRelease(colors);
-        CVPixelBufferUnlockBaseAddress(buffer, kCVPixelBufferLock_ReadOnly);
-        if (frame.pixels.error) { _sampleError = frame.pixels.error; return; }
-        [_frames addObject:[NSValue valueWithBytes:&frame objCType:@encode(QSStreamFrame)]];
+        QSStreamOutput output = {normalized, -1, timeNanos(CMSampleBufferGetPresentationTimeStamp(sample)),
+            display ? timeNanos(CMClockMakeHostTimeFromSystemUnits(display.unsignedLongLongValue)) : 0, received};
+        if (code == SCFrameStatusComplete && !_sampleError) [self captureCompleteSample:sample output:output];
+        output.frame = (int)_frames.count - 1;
+        if (_displayFilter) [_outputEvents addObject:[NSValue valueWithBytes:&output objCType:@encode(QSStreamOutput)]];
     }
+}
+- (void)captureCompleteSample:(CMSampleBufferRef)sample output:(QSStreamOutput)output {
+    CVPixelBufferRef buffer = CMSampleBufferGetImageBuffer(sample);
+    if (!buffer || CVPixelBufferGetPixelFormatType(buffer) != kCVPixelFormatType_32BGRA ||
+        CVPixelBufferLockBaseAddress(buffer, kCVPixelBufferLock_ReadOnly) != kCVReturnSuccess) {
+        _sampleError = -10009;
+        return;
+    }
+    size_t width = CVPixelBufferGetWidth(buffer), height = CVPixelBufferGetHeight(buffer);
+    size_t stride = CVPixelBufferGetBytesPerRow(buffer);
+    const void *base = CVPixelBufferGetBaseAddress(buffer);
+    CGColorSpaceRef colors = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+    CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, base, stride * height, NULL);
+    CGImageRef image = CGImageCreate(width, height, 8, 32, stride, colors,
+        kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst, provider, NULL, false, kCGRenderingIntentDefault);
+    QSStreamFrame frame = {0};
+    if (_displayFilter) snprintf(frame.file, sizeof(frame.file), "capture-display-%lu.png", (unsigned long)_frames.count);
+    else if (_liveMillis) snprintf(frame.file, sizeof(frame.file), "capture-live-%lu.png", (unsigned long)_frames.count);
+    else snprintf(frame.file, sizeof(frame.file), "capture-stream-%d-%lu.png", _index, (unsigned long)_frames.count);
+    if (image) frame.pixels = QSProbeReadImage(image, [NSString stringWithUTF8String:frame.file]);
+    else frame.pixels.error = -10010;
+    if (!frame.pixels.error) {
+        size_t colored = 0;
+        for (size_t row = 0; row < height; row++) {
+            const unsigned char *pixels = (const unsigned char *)base + row * stride;
+            for (size_t col = 0; col < width; col++) {
+                const unsigned char *bgra = pixels + col * 4;
+                if (bgra[0] || bgra[1] || bgra[2]) colored++;
+            }
+        }
+        frame.rawColor = (double)colored / (width * height);
+    }
+    frame.presentation = output.presentation;
+    frame.display = output.display;
+    frame.received = output.received;
+    if (image) CGImageRelease(image);
+    CGDataProviderRelease(provider);
+    CGColorSpaceRelease(colors);
+    CVPixelBufferUnlockBaseAddress(buffer, kCVPixelBufferLock_ReadOnly);
+    if (frame.pixels.error) { _sampleError = frame.pixels.error; return; }
+    [_frames addObject:[NSValue valueWithBytes:&frame objCType:@encode(QSStreamFrame)]];
 }
 @end
 
