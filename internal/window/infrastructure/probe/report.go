@@ -19,15 +19,16 @@ type Check struct {
 	Passed bool   `json:"passed"`
 }
 type Report struct {
-	System       string              `json:"system"`
-	WebViewReady bool                `json:"webViewReady"`
-	Observations []Observation       `json:"observations"`
-	Checks       []Check             `json:"checks"`
-	Errors       []string            `json:"errors,omitempty"`
-	Limitations  []string            `json:"limitations"`
-	Capture      *CaptureReport      `json:"capture,omitempty"`
-	LiveCapture  *LiveCaptureReport  `json:"liveCapture,omitempty"`
-	Environment  *CaptureEnvironment `json:"environment,omitempty"`
+	System           string                  `json:"system"`
+	WebViewReady     bool                    `json:"webViewReady"`
+	Observations     []Observation           `json:"observations"`
+	Checks           []Check                 `json:"checks"`
+	Errors           []string                `json:"errors,omitempty"`
+	Limitations      []string                `json:"limitations"`
+	Capture          *CaptureReport          `json:"capture,omitempty"`
+	LiveCapture      *LiveCaptureReport      `json:"liveCapture,omitempty"`
+	ProtectedCapture *ProtectedCaptureReport `json:"protectedCapture,omitempty"`
+	Environment      *CaptureEnvironment     `json:"environment,omitempty"`
 }
 
 func (r *Report) Evaluate() bool {
@@ -72,6 +73,15 @@ func (r *Report) Evaluate() bool {
 				"完整图像与 idle 通知分别计数，idle 保留上一张完整图像，按接收时间记录实际观察内容。",
 				"此项是仅含自建窗口的显示器过滤器证据，完整桌面与真实会议远端仍需验收。",
 			}
+		}
+	}
+	if r.ProtectedCapture != nil {
+		passed = r.ProtectedCapture.Evaluate() && passed
+		r.Limitations = []string{
+			"目标窗口在首次显示前启用捕获属性，两个采集会话期间均保持开启。",
+			"显示器包含名单仅有目标与同进程蓝色动态背景，开始采集前核对实际窗口归属及精确范围。",
+			"两次三十秒采集验证初次连接与重连，结果限于自建窗口、当前系统和包含名单。",
+			"背景属于诊断装置，真实会议远端、物理输入与输入法分别验收。",
 		}
 	}
 	for _, check := range r.Checks {

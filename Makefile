@@ -1,4 +1,4 @@
-.PHONY: prepare dev check unit integration e2e build bindings panel-probe host-probe focus-probe capture-probe stream-capture-probe live-capture-probe display-capture-probe keyboard-probe compatibility
+.PHONY: prepare dev check unit integration e2e build bindings panel-probe host-probe focus-probe capture-probe stream-capture-probe live-capture-probe display-capture-probe display-startup-capture-probe protected-session-probe keyboard-probe compatibility
 prepare:
 	node scripts/run.mjs prepare
 dev:
@@ -32,6 +32,10 @@ live-capture-probe:
 	node scripts/run.mjs live-capture-probe
 display-capture-probe:
 	node scripts/run.mjs display-capture-probe
+display-startup-capture-probe:
+	node scripts/run.mjs display-startup-capture-probe
+protected-session-probe:
+	node scripts/run.mjs protected-session-probe
 keyboard-probe:
 	node scripts/run.mjs keyboard-probe
 compatibility:

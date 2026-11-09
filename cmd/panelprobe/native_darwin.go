@@ -26,21 +26,23 @@ var currentProbe *nativeProbe
 func init() { runtime.LockOSThread() }
 
 type nativeProbe struct {
-	report         probe.Report
-	before         int
-	service        *application.Service
-	driver         *native.Driver
-	handles        map[domain.ID]platform.WindowHandle
-	captureStarted bool
-	mode           captureMode
-	displayWindow  bool
-	streamFrames   []probe.CaptureFrame
-	streamStatuses map[string]int
-	streamOutputs  []probe.CaptureOutput
-	stopped        bool
+	report           probe.Report
+	before           int
+	service          *application.Service
+	driver           *native.Driver
+	handles          map[domain.ID]platform.WindowHandle
+	captureStarted   bool
+	mode             captureMode
+	displayWindow    bool
+	startProtected   bool
+	streamFrames     []probe.CaptureFrame
+	streamStatuses   map[string]int
+	streamOutputs    []probe.CaptureOutput
+	protectedSession *probe.ProtectedCaptureSession
+	stopped          bool
 }
 
-func runNative(mode captureMode, display bool) (probe.Report, error) {
+func runNative(mode captureMode, display, startProtected bool) (probe.Report, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	state := C.QSProbeCaptureEnvironment()
@@ -54,7 +56,7 @@ func runNative(mode captureMode, display bool) (probe.Report, error) {
 		return report, fmt.Errorf("native capture needs an unlocked, awake desktop; locked=%t activeDisplays=%d asleep=%t", environment.SessionLocked, environment.ActiveDisplays, environment.MainDisplayAsleep)
 	}
 	driver := native.New()
-	currentProbe = &nativeProbe{driver: driver, service: application.New(driver), handles: map[domain.ID]platform.WindowHandle{}, before: int(C.QSProbeForeground()), mode: mode, displayWindow: display}
+	currentProbe = &nativeProbe{driver: driver, service: application.New(driver), handles: map[domain.ID]platform.WindowHandle{}, before: int(C.QSProbeForeground()), mode: mode, displayWindow: display, startProtected: startProtected}
 	currentProbe.report = report
 	if mode == captureScreenshot {
 		currentProbe.report.Capture = &probe.CaptureReport{API: probe.ScreenshotAPI}
@@ -68,7 +70,12 @@ func runNative(mode captureMode, display bool) (probe.Report, error) {
 			currentProbe.report.LiveCapture.API = probe.DisplayWindowStreamAPI
 		}
 	}
-	C.QSProbeRun()
+	timeoutMillis := 20_000
+	if mode == captureProtectedSession {
+		currentProbe.report.ProtectedCapture = &probe.ProtectedCaptureReport{API: probe.DisplayWindowStreamAPI}
+		timeoutMillis = 90_000
+	}
+	C.QSProbeRun(C.int(timeoutMillis))
 	result := currentProbe.report
 	currentProbe = nil
 	return result, nil
@@ -118,7 +125,7 @@ func panelProbeCreated(handle C.uintptr_t) {
 
 //export panelProbeTimeout
 func panelProbeTimeout() {
-	currentProbe.report.Errors = append(currentProbe.report.Errors, "native fixture/capture did not finish within 20 seconds")
+	currentProbe.report.Errors = append(currentProbe.report.Errors, "native fixture/capture exceeded the diagnostic deadline")
 	currentProbe.stop()
 }
 
@@ -164,12 +171,24 @@ func panelProbeReady() {
 	if p.service.Status().Captures != 0 {
 		p.check(fmt.Errorf("capture lease remained active"))
 	}
+	if p.report.ProtectedCapture != nil {
+		p.close("secondary")
+		p.report.ProtectedCapture.WindowCount = len(p.service.Status().Windows)
+		C.QSProbeCreateCaptureBackground(C.uintptr_t(p.handles["main"]), 1)
+		p.nextProtectedCapture(0)
+		return
+	}
 	if p.report.Capture != nil || p.report.LiveCapture != nil {
 		if p.report.LiveCapture != nil {
 			p.close("secondary")
 			p.report.LiveCapture.WindowCount = len(p.service.Status().Windows)
 		}
-		p.nextCapture(0)
+		index := 0
+		if p.startProtected {
+			C.QSProbeCreateCaptureBackground(C.uintptr_t(p.handles["main"]), 0)
+			index = -1
+		}
+		p.nextCapture(index)
 	}
 }
 
@@ -193,13 +212,29 @@ func (p *nativeProbe) nextCapture(index int) {
 	if p.displayWindow {
 		display = 1
 	}
-	C.QSProbeCapture(C.uintptr_t(p.handles["main"]), C.int(index), C.int(stream), C.int(liveMillis), C.int(display))
+	C.QSProbeCapture(C.uintptr_t(p.handles["main"]), C.int(index), C.int(stream), C.int(liveMillis), C.int(display), 0)
+}
+
+func (p *nativeProbe) protectedObservation(stage string) probe.CaptureTransition {
+	state := C.QSProbeObserve(C.uintptr_t(p.handles["main"]))
+	return probe.CaptureTransition{Stage: stage, AppliedNanos: int64(C.QSProbeHostTime()), PropertySet: state.protectedContent != 0, LocalVisible: state.visible != 0, Alpha: float64(state.alpha)}
+}
+
+func (p *nativeProbe) nextProtectedCapture(index int) {
+	// This path retains the default protection. It never calls setCapturePolicy.
+	r := p.report.ProtectedCapture
+	r.Sessions = append(r.Sessions, probe.ProtectedCaptureSession{Before: p.protectedObservation("protected-session-start")})
+	p.protectedSession = &r.Sessions[len(r.Sessions)-1]
+	p.captureStarted = true
+	p.streamFrames, p.streamOutputs = nil, nil
+	p.streamStatuses = map[string]int{}
+	C.QSProbeCapture(C.uintptr_t(p.handles["main"]), C.int(index), 1, 0, 1, probe.ProtectedSessionMillis)
 }
 
 //export panelProbeDisplaySelected
 func panelProbeDisplaySelected(s *C.QSProbeDisplaySelection) C.int {
 	p := currentProbe
-	if p == nil || p.stopped || !p.displayWindow || p.report.LiveCapture == nil || s == nil {
+	if p == nil || p.stopped || !p.displayWindow || (p.report.LiveCapture == nil && p.protectedSession == nil) || s == nil {
 		return 0
 	}
 	selection := &probe.DisplayCaptureSelection{
@@ -211,7 +246,17 @@ func panelProbeDisplaySelected(s *C.QSProbeDisplaySelection) C.int {
 		Display: probe.CaptureRect{X: float64(s.displayX), Y: float64(s.displayY), Width: float64(s.displayWidth), Height: float64(s.displayHeight)},
 		Crop:    probe.CaptureRect{X: float64(s.cropX), Y: float64(s.cropY), Width: float64(s.cropWidth), Height: float64(s.cropHeight)},
 	}
-	p.report.LiveCapture.DisplaySelection = selection
+	if s.expectedBackground != 0 || s.actualBackground != 0 || s.backgroundOwnerPID != 0 {
+		selection.Background = &probe.CaptureBackground{
+			ExpectedWindowID: uint32(s.expectedBackground), ActualWindowID: uint32(s.actualBackground), OwnerPID: int(s.backgroundOwnerPID),
+			Window: probe.CaptureRect{X: float64(s.backgroundX), Y: float64(s.backgroundY), Width: float64(s.backgroundWidth), Height: float64(s.backgroundHeight)},
+		}
+	}
+	if p.protectedSession != nil {
+		p.protectedSession.Selection = selection
+	} else {
+		p.report.LiveCapture.DisplaySelection = selection
+	}
 	if !selection.Valid() {
 		return 0
 	}
@@ -219,17 +264,24 @@ func panelProbeDisplaySelected(s *C.QSProbeDisplaySelection) C.int {
 }
 
 func (p *nativeProbe) setCapturePolicy(index int) bool {
-	if !p.check(p.service.Update(func(policy *domain.Policy) { policy.CaptureProtection = index == 1 })) {
+	if !p.check(p.service.Update(func(policy *domain.Policy) { policy.CaptureProtection = index == 1 || index == -1 })) {
 		return false
 	}
 	if p.report.LiveCapture != nil {
 		state := C.QSProbeObserve(C.uintptr_t(p.handles["main"]))
 		stages := []string{"baseline-before", "sharing-none", "baseline-after"}
-		p.report.LiveCapture.Transitions = append(p.report.LiveCapture.Transitions, probe.CaptureTransition{
-			Stage: stages[index], AppliedNanos: int64(C.QSProbeHostTime()),
-			PropertySet: state.protectedContent != 0, LocalVisible: state.visible != 0,
+		transition := probe.CaptureTransition{
+			AppliedNanos: int64(C.QSProbeHostTime()),
+			PropertySet:  state.protectedContent != 0, LocalVisible: state.visible != 0,
 			Alpha: float64(state.alpha),
-		})
+		}
+		if index == -1 {
+			transition.Stage = "initial-sharing-none"
+			p.report.LiveCapture.InitialProtection = &transition
+		} else {
+			transition.Stage = stages[index]
+			p.report.LiveCapture.Transitions = append(p.report.LiveCapture.Transitions, transition)
+		}
 	}
 	return true
 }
@@ -237,7 +289,7 @@ func (p *nativeProbe) setCapturePolicy(index int) bool {
 //export panelProbeLivePolicy
 func panelProbeLivePolicy(index C.int) C.int {
 	p := currentProbe
-	if p == nil || p.stopped || index < 1 || index > 2 || !p.setCapturePolicy(int(index)) {
+	if p == nil || p.stopped || index < 0 || index > 2 || (index == 0 && !p.startProtected) || !p.setCapturePolicy(int(index)) {
 		return 0
 	}
 	return 1
@@ -247,6 +299,12 @@ func panelProbeLivePolicy(index C.int) C.int {
 func panelProbeCaptured(index, width, height C.int, red, green, black, transparent C.double, errorCode C.int) {
 	p := currentProbe
 	if p == nil {
+		return
+	}
+	if p.protectedSession != nil {
+		p.protectedSession.ErrorCode = int(errorCode)
+		p.protectedSession.After = p.protectedObservation("protected-session-end")
+		p.stop()
 		return
 	}
 	if p.report.LiveCapture != nil {
@@ -271,7 +329,7 @@ func panelProbeCaptured(index, width, height C.int, red, green, black, transpare
 }
 
 //export panelProbeStreamFrame
-func panelProbeStreamFrame(width, height C.int, red, green, black, transparent, rawColor C.double, presentation, display, received C.int64_t, file *C.char) {
+func panelProbeStreamFrame(width, height C.int, red, green, blue, black, transparent, rawColor C.double, presentation, display, received C.int64_t, file *C.char) {
 	p := currentProbe
 	if p == nil || p.stopped {
 		return
@@ -281,6 +339,7 @@ func panelProbeStreamFrame(width, height C.int, red, green, black, transparent, 
 		CapturePixels: probe.CapturePixels{
 			Width: int(width), Height: int(height),
 			RedRatio: float64(red), GreenRatio: float64(green),
+			BlueRatio:  float64(blue),
 			BlackRatio: float64(black), TransparentRatio: float64(transparent),
 		},
 		PresentationNanos: int64(presentation), DisplayNanos: int64(display),
@@ -293,6 +352,17 @@ func panelProbeStreamFrame(width, height C.int, red, green, black, transparent, 
 func panelProbeStreamFinished(index, duration, outputs, errorCode C.int) {
 	p := currentProbe
 	if p == nil || p.stopped {
+		return
+	}
+	if session := p.protectedSession; session != nil {
+		session.StreamObservation = probe.StreamObservation{DurationMillis: int(duration), OutputCount: int(outputs), FrameStatuses: p.streamStatuses, Frames: p.streamFrames}
+		session.Outputs, session.ErrorCode = p.streamOutputs, int(errorCode)
+		session.After = p.protectedObservation("protected-session-end")
+		if errorCode != 0 || index == 1 {
+			p.stop()
+		} else {
+			p.nextProtectedCapture(int(index) + 1)
+		}
 		return
 	}
 	if live := p.report.LiveCapture; live != nil {
@@ -319,10 +389,26 @@ func panelProbeStreamFinished(index, duration, outputs, errorCode C.int) {
 //export panelProbeStreamLifecycle
 func panelProbeStreamLifecycle(phase C.int, at C.int64_t) {
 	p := currentProbe
-	if p == nil || p.stopped || p.report.LiveCapture == nil {
+	if p == nil || p.stopped {
+		return
+	}
+	if session := p.protectedSession; session != nil {
+		switch phase {
+		case 0:
+			session.Starts++
+			session.StartedNanos = int64(at)
+		case 1:
+			session.Stops++
+			session.StoppedNanos = int64(at)
+		case 2:
+			session.DrainedNanos = int64(at)
+		}
 		return
 	}
 	live := p.report.LiveCapture
+	if live == nil {
+		return
+	}
 	if phase == 0 {
 		live.Starts++
 		live.StartedNanos = int64(at)

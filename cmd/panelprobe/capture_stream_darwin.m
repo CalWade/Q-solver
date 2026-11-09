@@ -6,7 +6,7 @@
 #import <CoreVideo/CoreVideo.h>
 #include <time.h>
 
-extern void panelProbeStreamFrame(int width, int height, double red, double green, double black, double transparent, double rawColor, int64_t presentation, int64_t display, int64_t received, const char *file);
+extern void panelProbeStreamFrame(int width, int height, double red, double green, double blue, double black, double transparent, double rawColor, int64_t presentation, int64_t display, int64_t received, const char *file);
 extern void panelProbeStreamFinished(int index, int duration, int outputs, int errorCode);
 extern void panelProbeStreamStatus(int status, int count);
 extern void panelProbeStreamLifecycle(int phase, int64_t at);
@@ -43,12 +43,12 @@ static int64_t monotonicNanos(void) {
     dispatch_queue_t _sampleQueue;
     NSMutableArray *_frames;
     NSMutableArray *_outputEvents;
-    int _index, _outputs, _sampleError, _cancelError, _liveMillis;
+    int _index, _outputs, _sampleError, _cancelError, _liveMillis, _protectedMillis;
     int _statuses[7];
     int64_t _startedAt;
     BOOL _starting, _started, _finishing, _displayFilter;
 }
-- (instancetype)initWithFilter:(SCContentFilter *)filter configuration:(SCStreamConfiguration *)config index:(int)index liveMillis:(int)liveMillis;
+- (instancetype)initWithFilter:(SCContentFilter *)filter configuration:(SCStreamConfiguration *)config index:(int)index liveMillis:(int)liveMillis protectedMillis:(int)protectedMillis;
 - (void)start;
 - (void)finish:(int)errorCode;
 - (void)checkSamples;
@@ -59,11 +59,12 @@ static int64_t monotonicNanos(void) {
 static QSProbeStream *activeStream;
 
 @implementation QSProbeStream
-- (instancetype)initWithFilter:(SCContentFilter *)filter configuration:(SCStreamConfiguration *)config index:(int)index liveMillis:(int)liveMillis {
+- (instancetype)initWithFilter:(SCContentFilter *)filter configuration:(SCStreamConfiguration *)config index:(int)index liveMillis:(int)liveMillis protectedMillis:(int)protectedMillis {
     self = [super init];
     if (self) {
         _index = index;
         _liveMillis = liveMillis;
+        _protectedMillis = protectedMillis;
         _displayFilter = filter.style == SCShareableContentStyleDisplay;
         _frames = [[NSMutableArray alloc] init];
         _outputEvents = [[NSMutableArray alloc] init];
@@ -97,8 +98,12 @@ static QSProbeStream *activeStream;
             if (startError) { [self finish:(int)startError.code]; return; }
             self->_started = YES;
             self->_startedAt = monotonicNanos();
-            if (self->_liveMillis) panelProbeStreamLifecycle(0, QSProbeHostTime());
+            if (self->_liveMillis || self->_protectedMillis) panelProbeStreamLifecycle(0, QSProbeHostTime());
             if (self->_cancelError) { [self finish:self->_cancelError]; return; }
+            if (self->_protectedMillis) {
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, self->_protectedMillis * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{ [self finish:0]; });
+                return;
+            }
             if (self->_liveMillis) {
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, self->_liveMillis * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
                     [self advanceLivePhase];
@@ -161,13 +166,13 @@ static QSProbeStream *activeStream;
                 if (!removed && !reportedError) reportedError = removeError ? (int)removeError.code : -10012;
                 activeStream = nil;
                 if (QSProbeRunning()) {
-                    if (self->_liveMillis && stoppedAt) panelProbeStreamLifecycle(1, stoppedAt);
+                    if ((self->_liveMillis || self->_protectedMillis) && stoppedAt) panelProbeStreamLifecycle(1, stoppedAt);
                     if (self->_displayFilter) panelProbeStreamLifecycle(2, drainedAt);
                     for (int status = 0; status < 7; status++) panelProbeStreamStatus(status, self->_statuses[status]);
                     for (NSValue *value in self->_frames) {
                         QSStreamFrame frame;
                         [value getValue:&frame size:sizeof(frame)];
-                        panelProbeStreamFrame(frame.pixels.width, frame.pixels.height, frame.pixels.red, frame.pixels.green,
+                        panelProbeStreamFrame(frame.pixels.width, frame.pixels.height, frame.pixels.red, frame.pixels.green, frame.pixels.blue,
                             frame.pixels.black, frame.pixels.transparent, frame.rawColor, frame.presentation, frame.display, frame.received, frame.file);
                     }
                     for (NSValue *value in self->_outputEvents) {
@@ -225,7 +230,8 @@ static QSProbeStream *activeStream;
     CGImageRef image = CGImageCreate(width, height, 8, 32, stride, colors,
         kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst, provider, NULL, false, kCGRenderingIntentDefault);
     QSStreamFrame frame = {0};
-    if (_displayFilter) snprintf(frame.file, sizeof(frame.file), "capture-display-%lu.png", (unsigned long)_frames.count);
+    if (_protectedMillis) snprintf(frame.file, sizeof(frame.file), "capture-protected-%d-%lu.png", _index, (unsigned long)_frames.count);
+    else if (_displayFilter) snprintf(frame.file, sizeof(frame.file), "capture-display-%lu.png", (unsigned long)_frames.count);
     else if (_liveMillis) snprintf(frame.file, sizeof(frame.file), "capture-live-%lu.png", (unsigned long)_frames.count);
     else snprintf(frame.file, sizeof(frame.file), "capture-stream-%d-%lu.png", _index, (unsigned long)_frames.count);
     if (image) frame.pixels = QSProbeReadImage(image, [NSString stringWithUTF8String:frame.file]);
@@ -253,8 +259,8 @@ static QSProbeStream *activeStream;
 }
 @end
 
-void QSProbeStartStream(SCContentFilter *filter, SCStreamConfiguration *config, int index, int liveMillis) {
-    activeStream = [[QSProbeStream alloc] initWithFilter:filter configuration:config index:index liveMillis:liveMillis];
+void QSProbeStartStream(SCContentFilter *filter, SCStreamConfiguration *config, int index, int liveMillis, int protectedMillis) {
+    activeStream = [[QSProbeStream alloc] initWithFilter:filter configuration:config index:index liveMillis:liveMillis protectedMillis:protectedMillis];
     [activeStream start];
 }
 

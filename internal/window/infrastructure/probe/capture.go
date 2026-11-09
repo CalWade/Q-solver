@@ -8,15 +8,22 @@ type CapturePixels struct {
 	Height           int     `json:"height"`
 	RedRatio         float64 `json:"redRatio"`
 	GreenRatio       float64 `json:"greenRatio"`
+	BlueRatio        float64 `json:"blueRatio,omitempty"`
 	BlackRatio       float64 `json:"opaqueBlackRatio"`
 	TransparentRatio float64 `json:"transparentRatio"`
 }
 
 func (p CapturePixels) valid() bool {
-	return p.Width > 0 && p.Height > 0 && p.RedRatio >= 0 && p.RedRatio <= 1 && p.GreenRatio >= 0 && p.GreenRatio <= 1 && p.BlackRatio >= 0 && p.BlackRatio <= 1 && p.TransparentRatio >= 0 && p.TransparentRatio <= 1
+	return p.Width > 0 && p.Height > 0 && p.RedRatio >= 0 && p.RedRatio <= 1 && p.GreenRatio >= 0 && p.GreenRatio <= 1 && p.BlueRatio >= 0 && p.BlueRatio <= 1 && p.BlackRatio >= 0 && p.BlackRatio <= 1 && p.TransparentRatio >= 0 && p.TransparentRatio <= 1
 }
 
 func (p CapturePixels) outcome() string {
+	if p.BlueRatio >= .98 {
+		if p.RedRatio > 0 || p.GreenRatio > 0 {
+			return "visible"
+		}
+		return "background-only"
+	}
 	if p.RedRatio >= .15 && p.GreenRatio >= .15 {
 		return "visible"
 	}

@@ -21,24 +21,38 @@ func (r CaptureRect) valid() bool {
 }
 
 type DisplayCaptureSelection struct {
+	ExpectedWindowID uint32             `json:"expectedWindowID"`
+	ActualWindowID   uint32             `json:"actualWindowID"`
+	ExpectedOwnerPID int                `json:"expectedOwnerPID"`
+	ActualOwnerPID   int                `json:"actualOwnerPID"`
+	ExpectedDisplay  uint32             `json:"expectedDisplayID"`
+	ActualDisplay    uint32             `json:"actualDisplayID"`
+	WindowCount      int                `json:"includedWindows"`
+	DisplayCount     int                `json:"includedDisplays"`
+	Window           CaptureRect        `json:"windowRect"`
+	Display          CaptureRect        `json:"displayRect"`
+	Crop             CaptureRect        `json:"sourceRect"`
+	Background       *CaptureBackground `json:"background,omitempty"`
+}
+
+type CaptureBackground struct {
 	ExpectedWindowID uint32      `json:"expectedWindowID"`
 	ActualWindowID   uint32      `json:"actualWindowID"`
-	ExpectedOwnerPID int         `json:"expectedOwnerPID"`
-	ActualOwnerPID   int         `json:"actualOwnerPID"`
-	ExpectedDisplay  uint32      `json:"expectedDisplayID"`
-	ActualDisplay    uint32      `json:"actualDisplayID"`
-	WindowCount      int         `json:"includedWindows"`
-	DisplayCount     int         `json:"includedDisplays"`
+	OwnerPID         int         `json:"ownerPID"`
 	Window           CaptureRect `json:"windowRect"`
-	Display          CaptureRect `json:"displayRect"`
-	Crop             CaptureRect `json:"sourceRect"`
 }
 
 // The inclusion filter is restricted to the fixture's own window. Geometry is
 // checked before starting capture, including displays with negative origins.
 func (s DisplayCaptureSelection) Valid() bool {
 	identity := s.ExpectedWindowID != 0 && s.ActualWindowID == s.ExpectedWindowID && s.ExpectedOwnerPID > 0 && s.ActualOwnerPID == s.ExpectedOwnerPID
-	identity = identity && s.ExpectedDisplay != 0 && s.ActualDisplay == s.ExpectedDisplay && s.WindowCount == 1 && s.DisplayCount == 1
+	windows := 1
+	if background := s.Background; background != nil {
+		windows++
+		identity = identity && background.ExpectedWindowID != 0 && background.ExpectedWindowID != s.ExpectedWindowID && background.ActualWindowID == background.ExpectedWindowID
+		identity = identity && background.OwnerPID == s.ExpectedOwnerPID && background.Window == s.Window
+	}
+	identity = identity && s.ExpectedDisplay != 0 && s.ActualDisplay == s.ExpectedDisplay && s.WindowCount == windows && s.DisplayCount == 1
 	if !identity || !s.Window.valid() || !s.Display.valid() || !s.Crop.valid() {
 		return false
 	}

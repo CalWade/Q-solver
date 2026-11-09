@@ -30,25 +30,28 @@ type CaptureOutput struct {
 }
 
 type LiveCaptureReport struct {
-	API              string                   `json:"api"`
-	WindowCount      int                      `json:"registeredWindows"`
-	DisplaySelection *DisplayCaptureSelection `json:"displaySelection,omitempty"`
-	Starts           int                      `json:"starts"`
-	Stops            int                      `json:"stops"`
-	StartedNanos     int64                    `json:"startedNanos"`
-	StoppedNanos     int64                    `json:"stoppedNanos"`
-	DrainedNanos     int64                    `json:"drainedNanos,omitempty"`
-	Transitions      []CaptureTransition      `json:"transitions"`
-	OutputCount      int                      `json:"outputCount"`
-	FrameStatuses    map[string]int           `json:"frameStatuses"`
-	Frames           []CaptureFrame           `json:"frames"`
-	Outputs          []CaptureOutput          `json:"outputs,omitempty"`
-	ErrorCode        int                      `json:"errorCode,omitempty"`
-	StartupFrames    int                      `json:"startupFrames"`
-	Phases           []LivePhase              `json:"phases"`
-	Completed        bool                     `json:"completed"`
-	Outcome          string                   `json:"protectedWindowOutcome"`
-	Checks           []Check                  `json:"checks"`
+	API               string                   `json:"api"`
+	WindowCount       int                      `json:"registeredWindows"`
+	DisplaySelection  *DisplayCaptureSelection `json:"displaySelection,omitempty"`
+	Starts            int                      `json:"starts"`
+	Stops             int                      `json:"stops"`
+	StartedNanos      int64                    `json:"startedNanos"`
+	StoppedNanos      int64                    `json:"stoppedNanos"`
+	DrainedNanos      int64                    `json:"drainedNanos,omitempty"`
+	Transitions       []CaptureTransition      `json:"transitions"`
+	InitialProtection *CaptureTransition       `json:"initialProtection,omitempty"`
+	InitialPhase      *LivePhase               `json:"initialPhase,omitempty"`
+	InitialOutcome    string                   `json:"initialProtectedWindowOutcome,omitempty"`
+	OutputCount       int                      `json:"outputCount"`
+	FrameStatuses     map[string]int           `json:"frameStatuses"`
+	Frames            []CaptureFrame           `json:"frames"`
+	Outputs           []CaptureOutput          `json:"outputs,omitempty"`
+	ErrorCode         int                      `json:"errorCode,omitempty"`
+	StartupFrames     int                      `json:"startupFrames"`
+	Phases            []LivePhase              `json:"phases"`
+	Completed         bool                     `json:"completed"`
+	Outcome           string                   `json:"protectedWindowOutcome"`
+	Checks            []Check                  `json:"checks"`
 }
 
 // Every complete frame stays in the trace. Frame display time and policy
@@ -99,13 +102,17 @@ func (r *LiveCaptureReport) Evaluate() bool {
 func (r *LiveCaptureReport) beginEvaluation(apiValid bool) bool {
 	r.Outcome, r.Completed = "inconclusive", false
 	r.StartupFrames, r.Phases = 0, nil
+	r.InitialPhase, r.InitialOutcome = nil, ""
+	if r.InitialProtection != nil {
+		r.InitialOutcome = "inconclusive"
+	}
 	r.Checks = []Check{
 		{"single registered window during live capture", r.WindowCount == 1},
 		{"one stream started and stopped", apiValid && r.Starts == 1 && r.Stops == 1 && r.ErrorCode == 0 && r.StartedNanos > 0 && r.StoppedNanos > r.StartedNanos},
 		{"every complete output recorded", len(r.Frames) > 0 && validFrameStatuses(r.FrameStatuses, r.OutputCount, len(r.Frames))},
 	}
 	if r.API == DisplayWindowStreamAPI {
-		r.Checks = append(r.Checks, Check{"display filter includes only the owned window with an exact crop", r.DisplaySelection != nil && r.DisplaySelection.Valid()})
+		r.Checks = append(r.Checks, Check{"display filter includes only explicitly owned fixture windows with an exact crop", r.DisplaySelection != nil && r.DisplaySelection.Valid()})
 	}
 	stages := []string{"baseline-before", "sharing-none", "baseline-after"}
 	transitionsValid := len(r.Transitions) == len(stages)
@@ -117,9 +124,16 @@ func (r *LiveCaptureReport) beginEvaluation(apiValid bool) bool {
 		previous = transition.AppliedNanos
 	}
 	if transitionsValid {
-		transitionsValid = r.Transitions[0].AppliedNanos <= r.StartedNanos && r.StartedNanos < r.Transitions[1].AppliedNanos && r.Transitions[2].AppliedNanos < r.StoppedNanos
+		transitionsValid = r.StartedNanos < r.Transitions[1].AppliedNanos && r.Transitions[2].AppliedNanos < r.StoppedNanos
+		if initial := r.InitialProtection; initial != nil {
+			transitionsValid = transitionsValid && r.API == DisplayWindowStreamAPI && initial.Stage == "initial-sharing-none" && initial.PropertySet && initial.LocalVisible && initial.Alpha == 1
+			transitionsValid = transitionsValid && r.DisplaySelection != nil && r.DisplaySelection.Background != nil
+			transitionsValid = transitionsValid && initial.AppliedNanos > 0 && initial.AppliedNanos <= r.StartedNanos && r.StartedNanos < r.Transitions[0].AppliedNanos
+		} else {
+			transitionsValid = transitionsValid && r.Transitions[0].AppliedNanos <= r.StartedNanos
+		}
 	}
-	r.Checks = append(r.Checks, Check{"three ordered policy acknowledgements with local window visible", transitionsValid})
+	r.Checks = append(r.Checks, Check{"ordered policy acknowledgements with local window visible", transitionsValid})
 	if !transitionsValid {
 		return false
 	}
@@ -138,7 +152,7 @@ func (r *LiveCaptureReport) phaseAt(at int64) int {
 
 func (r *LiveCaptureReport) phaseInterval(i int, stop int64) (int64, int64) {
 	start, end := r.Transitions[i].AppliedNanos, stop
-	if i == 0 {
+	if i == 0 && r.InitialProtection == nil {
 		start = r.StartedNanos
 	}
 	if i+1 < len(r.Transitions) {
@@ -153,19 +167,26 @@ func (r *LiveCaptureReport) finishEvaluation(total int) bool {
 		valid = valid && check.Passed
 	}
 	if valid {
-		counts := r.Phases[1].Outcomes
-		for _, outcome := range []string{"visible", "transparent", "transparent-with-data", "blank", "marker_absent"} {
-			if counts[outcome] == total {
-				r.Outcome = outcome
-			}
-		}
-		if counts["visible"] > 0 && counts["visible"] < total {
-			r.Outcome = "transition-leak"
-		}
+		r.Outcome = protectedPhaseOutcome(r.Phases[1].Outcomes, total)
 	}
 	r.Completed = valid && r.Outcome != "inconclusive"
 	r.Checks = append(r.Checks, Check{"live comparison has an interpretable protected outcome", r.Completed})
 	return r.Completed
+}
+
+func protectedPhaseOutcome(counts map[string]int, total int) string {
+	if total <= 0 {
+		return "inconclusive"
+	}
+	for _, outcome := range []string{"visible", "transparent", "transparent-with-data", "blank", "marker_absent", "background-only"} {
+		if counts[outcome] == total {
+			return outcome
+		}
+	}
+	if counts["visible"] > 0 && counts["visible"] < total {
+		return "transition-leak"
+	}
+	return "inconclusive"
 }
 
 func summarizeLivePhase(stage string, applied int64, frames []CaptureFrame) LivePhase {

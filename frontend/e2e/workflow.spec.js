@@ -20,6 +20,39 @@ test.beforeEach(async ({ page, request }) => {
   await expect(page.getByTitle('设置', { exact: true })).toBeVisible()
 })
 
+test('default capture protection stays enabled through editing, local visibility, solving and reload', async ({ page, request }) => {
+  async function expectProtected() {
+    const status = await rpc(request, 'GetWindowStatus')
+    expect(status.desired.captureProtection).toBe(true)
+    expect(status.captures).toBe(0)
+    expect(status.windows).toHaveLength(1)
+    expect(status.windows[0]).toMatchObject({ ready: true, applied: { captureProtection: true }, capture: { applied: true } })
+  }
+  await expectProtected()
+  await page.getByTitle('设置', { exact: true }).click()
+  await expect(page.locator('#settings-modal')).toBeVisible()
+  await page.locator('#settings-modal .tab').getByText('常规', { exact: true }).click()
+  await expect(page.getByLabel('启用屏幕捕获保护', { exact: true })).toBeChecked()
+  await expectProtected()
+  await page.getByRole('button', { name: '关闭设置', exact: true }).click()
+  await expect(page.locator('#settings-modal')).toBeHidden()
+  await expectProtected()
+  expect(await rpc(request, 'SetLocalVisible', false)).toBe('')
+  await expectProtected()
+  expect((await rpc(request, 'GetWindowStatus')).windows[0].applied.visible).toBe(false)
+  expect(await rpc(request, 'SetLocalVisible', true)).toBe('')
+  await rpc(request, 'TriggerScreenshot')
+  await expect(page.locator('.dock-count')).toHaveText('1/3')
+  await expectProtected()
+  const id = await send(request)
+  await expectProtected()
+  await rpc(request, 'HarnessModelFinish', id, '默认保护流程的合成答案')
+  await expect(page.locator('.ai-response').last()).toHaveText('默认保护流程的合成答案')
+  await page.reload()
+  await expect(page.getByTitle('设置', { exact: true })).toBeVisible()
+  await expectProtected()
+})
+
 test('native command adapter → screenshot queue → request snapshot → primary UI and SSE final answer', async ({ page, request, context }) => {
   const viewer = await context.newPage()
   // Exercise the viewer's offline fallback; test never depends on CDN resources.

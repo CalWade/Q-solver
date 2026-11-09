@@ -57,6 +57,44 @@ func TestRegisterProtectsBeforeFirstShowAndRecreatedWindows(t *testing.T) {
 		t.Fatal(d.calls)
 	}
 }
+
+func TestDefaultProtectionSurvivesNormalWindowOperations(t *testing.T) {
+	driver := &fakeDriver{}
+	service := New(driver)
+	if err := service.Register("main"); err != nil {
+		t.Fatal(err)
+	}
+	for _, update := range []func(*domain.Policy){
+		func(p *domain.Policy) { p.InputMode = domain.Editing },
+		func(p *domain.Policy) { p.InputMode = domain.Passive },
+		func(p *domain.Policy) { p.Visible = false },
+		func(p *domain.Policy) { p.Visible = true },
+	} {
+		if err := service.Update(update); err != nil {
+			t.Fatal(err)
+		}
+		state := service.Status()
+		if !state.Desired.CaptureProtection || !state.Windows[0].Applied.CaptureProtection {
+			t.Fatal("normal operation disabled default protection", state)
+		}
+	}
+	release, err := service.BeginCapture()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := release(); err != nil {
+		t.Fatal(err)
+	}
+	service.Unregister("main")
+	if err := service.Register("main"); err != nil {
+		t.Fatal(err)
+	}
+	for _, call := range driver.calls {
+		if call == "main:capture:false" {
+			t.Fatal("default protection was disabled", driver.calls)
+		}
+	}
+}
 func TestFailureDoesNotClaimSuccessOrShowUnprotectedWindow(t *testing.T) {
 	d := &fakeDriver{fail: "capture"}
 	s := New(d)

@@ -29,10 +29,45 @@ extern int panelProbeDisplaySelected(QSProbeDisplaySelection *selection);
 - (BOOL)needsPanelToBecomeKey { return NO; }
 @end
 
+@interface QSProbeControlView : NSView {
+    NSTimer *_timer;
+    BOOL _markerVisible;
+}
+- (void)stopAnimation;
+@end
+@implementation QSProbeControlView
+- (instancetype)initWithFrame:(NSRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) _timer = [[NSTimer scheduledTimerWithTimeInterval:1.0/15 target:self selector:@selector(tick:) userInfo:nil repeats:YES] retain];
+    return self;
+}
+- (void)tick:(NSTimer *)timer {
+    _markerVisible = !_markerVisible;
+    [self setNeedsDisplay:YES];
+}
+- (void)drawRect:(NSRect)dirtyRect {
+    [[NSColor colorWithSRGBRed:0 green:0 blue:1 alpha:1] setFill];
+    NSRectFill(self.bounds);
+    if (_markerVisible) {
+        [NSColor.whiteColor setFill];
+        NSRectFill(NSMakeRect(8, 8, 4, 4));
+    }
+}
+- (void)stopAnimation {
+    [_timer invalidate]; [_timer release]; _timer = nil;
+}
+- (void)dealloc {
+    [self stopAnimation];
+    [super dealloc];
+}
+@end
+
 @interface QSProbeDelegate : NSObject <NSApplicationDelegate, WKScriptMessageHandler>
 @property BOOL finished;
 @end
 static QSProbeDelegate *probeDelegate;
+static NSPanel *captureBackground;
+static int probeTimeoutMillis;
 
 static void captureResultWithMetrics(int index, int width, int height, double red, double green, int errorCode, double black, double transparent) {
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -62,7 +97,7 @@ QSProbePixels QSProbeReadImage(CGImageRef image, NSString *filename) {
     if (!bitmap) { result.error = -10004; return result; }
     CGContextDrawImage(bitmap, CGRectMake(0, 0, width, height), image);
     const unsigned char *pixels = CGBitmapContextGetData(bitmap);
-    size_t red = 0, green = 0, black = 0, transparent = 0, count = width * height;
+    size_t red = 0, green = 0, blue = 0, black = 0, transparent = 0, count = width * height;
     for (size_t p = 0; p < count; p++) {
         const unsigned char *rgb = pixels + p * 4;
         if (rgb[3] < 10) transparent++;
@@ -70,10 +105,12 @@ QSProbePixels QSProbeReadImage(CGImageRef image, NSString *filename) {
         if (rgb[3] < 180) continue;
         if (rgb[0] > 180 && rgb[1] < 80 && rgb[2] < 80) red++;
         if (rgb[1] > 180 && rgb[0] < 80 && rgb[2] < 80) green++;
+        if (rgb[2] > 180 && rgb[0] < 80 && rgb[1] < 80) blue++;
     }
     result.width = (int)width; result.height = (int)height;
     result.red = (double)red / count; result.green = (double)green / count;
     result.black = (double)black / count; result.transparent = (double)transparent / count;
+    result.blue = (double)blue / count;
     CGContextRelease(bitmap);
     return result;
 }
@@ -97,14 +134,26 @@ QSProbeEnvironment QSProbeCaptureEnvironment(void) {
     return result;
 }
 
-static SCContentFilter *ownedDisplayFilter(SCShareableContent *content, SCWindow *window, SCStreamConfiguration *config, CGWindowID ownedID, int index) {
+static SCContentFilter *ownedDisplayFilter(SCShareableContent *content, SCWindow *window, SCStreamConfiguration *config, CGWindowID ownedID, int index, CGWindowID backgroundID) {
     if (@available(macOS 15.2, *)) {
         SCDisplay *display = nil;
         for (SCDisplay *candidate in content.displays) {
             if (CGRectContainsRect(candidate.frame, window.frame)) { display = candidate; break; }
         }
         if (!display) { captureResult(index, 0, 0, 0, 0, -10020); return nil; }
-        SCContentFilter *filter = [[SCContentFilter alloc] initWithDisplay:display includingWindows:@[window]];
+        SCWindow *background = nil;
+        if (backgroundID) {
+            for (SCWindow *candidate in content.windows) {
+                if (candidate.windowID == backgroundID) { background = candidate; break; }
+            }
+            if (!background || background.owningApplication.processID != NSProcessInfo.processInfo.processIdentifier ||
+                !CGRectEqualToRect(background.frame, window.frame)) {
+                captureResult(index, 0, 0, 0, 0, -10024);
+                return nil;
+            }
+        }
+        NSArray *included = background ? @[window, background] : @[window];
+        SCContentFilter *filter = [[SCContentFilter alloc] initWithDisplay:display includingWindows:included];
         if (!filter) { captureResult(index, 0, 0, 0, 0, -10021); return nil; }
         filter.includeMenuBar = NO;
         config.ignoreShadowsDisplay = YES;
@@ -112,7 +161,11 @@ static SCContentFilter *ownedDisplayFilter(SCShareableContent *content, SCWindow
         config.sourceRect = CGRectMake(windowRect.origin.x - displayRect.origin.x, windowRect.origin.y - displayRect.origin.y,
             windowRect.size.width, windowRect.size.height);
         CGRect crop = config.sourceRect;
-        SCWindow *actualWindow = filter.includedWindows.firstObject;
+        SCWindow *actualWindow = nil, *actualBackground = nil;
+        for (SCWindow *candidate in filter.includedWindows) {
+            if (candidate.windowID == ownedID) actualWindow = candidate;
+            if (backgroundID && candidate.windowID == backgroundID) actualBackground = candidate;
+        }
         SCDisplay *actualDisplay = filter.includedDisplays.firstObject;
         QSProbeDisplaySelection selection = {
             ownedID, actualWindow.windowID, display.displayID, actualDisplay.displayID,
@@ -121,6 +174,14 @@ static SCContentFilter *ownedDisplayFilter(SCShareableContent *content, SCWindow
             displayRect.origin.x, displayRect.origin.y, displayRect.size.width, displayRect.size.height,
             crop.origin.x, crop.origin.y, crop.size.width, crop.size.height
         };
+        if (backgroundID) {
+            CGRect backgroundRect = actualBackground ? actualBackground.frame : CGRectZero;
+            selection.expectedBackground = backgroundID;
+            selection.actualBackground = actualBackground.windowID;
+            selection.backgroundOwnerPID = actualBackground.owningApplication.processID;
+            selection.backgroundX = backgroundRect.origin.x; selection.backgroundY = backgroundRect.origin.y;
+            selection.backgroundWidth = backgroundRect.size.width; selection.backgroundHeight = backgroundRect.size.height;
+        }
         __block BOOL accepted = NO;
         dispatch_sync(dispatch_get_main_queue(), ^{
             QSProbeDisplaySelection snapshot = selection;
@@ -133,10 +194,11 @@ static SCContentFilter *ownedDisplayFilter(SCShareableContent *content, SCWindow
     return nil;
 }
 
-void QSProbeCapture(uintptr_t handle, int index, int stream, int liveMillis, int displayWindow) {
+void QSProbeCapture(uintptr_t handle, int index, int stream, int liveMillis, int displayWindow, int protectedMillis) {
     if (!CGPreflightScreenCaptureAccess()) { captureResult(index, 0, 0, 0, 0, -10001); return; }
     if (@available(macOS 14.0, *)) {
         CGWindowID ownedID = (CGWindowID)[(NSWindow *)handle windowNumber];
+        CGWindowID backgroundID = captureBackground ? (CGWindowID)captureBackground.windowNumber : 0;
         // Give the compositor a turn after the acknowledged sharing property.
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 200 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
             if (!probeDelegate || probeDelegate.finished) return;
@@ -155,12 +217,12 @@ void QSProbeCapture(uintptr_t handle, int index, int stream, int liveMillis, int
                 config.width = 390; config.height = 170;
                 config.showsCursor = NO;
                 config.ignoreShadowsSingleWindow = YES;
-                SCContentFilter *filter = displayWindow ? ownedDisplayFilter(content, ownedWindow, config, ownedID, index) :
+                SCContentFilter *filter = displayWindow ? ownedDisplayFilter(content, ownedWindow, config, ownedID, index, backgroundID) :
                     [[SCContentFilter alloc] initWithDesktopIndependentWindow:ownedWindow];
                 if (!filter) { [config release]; return; }
                 if (stream) {
                     dispatch_async(dispatch_get_main_queue(), ^{
-                        if (QSProbeRunning()) QSProbeStartStream(filter, config, index, liveMillis);
+                        if (QSProbeRunning()) QSProbeStartStream(filter, config, index, liveMillis, protectedMillis);
                     });
                 } else [SCScreenshotManager captureImageWithFilter:filter configuration:config completionHandler:^(CGImageRef image, NSError *captureError) {
                     if (captureError || !image) { captureResult(index, 0, 0, 0, 0, captureError ? (int)captureError.code : -10003); return; }
@@ -185,6 +247,25 @@ uintptr_t QSProbeCreate(void) {
     panel.backgroundColor = [NSColor colorWithRed:0.08 green:0.11 blue:0.16 alpha:1];
     panel.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary;
     return (uintptr_t)panel;
+}
+void QSProbeCreateCaptureBackground(uintptr_t target, int positiveControl) {
+    NSWindow *window = (NSWindow *)target;
+    captureBackground = (NSPanel *)QSProbeCreate();
+    captureBackground.backgroundColor = NSColor.blackColor;
+    if (positiveControl) {
+        QSProbeControlView *view = [[QSProbeControlView alloc] initWithFrame:window.contentView.bounds];
+        captureBackground.contentView = view;
+        [view release];
+    }
+    captureBackground.sharingType = NSWindowSharingReadOnly;
+    captureBackground.level = window.level;
+    [captureBackground setFrame:window.frame display:NO];
+    [captureBackground orderWindow:NSWindowBelow relativeTo:window.windowNumber];
+}
+static void closeCaptureBackground(void) {
+    if (!captureBackground) return;
+    if ([captureBackground.contentView isKindOfClass:[QSProbeControlView class]]) [(QSProbeControlView *)captureBackground.contentView stopAnimation];
+    [captureBackground close]; [captureBackground release]; captureBackground = nil;
 }
 void QSProbeClose(uintptr_t handle) {
     NSWindow *window = (NSWindow *)handle;
@@ -212,6 +293,7 @@ void QSProbeEndRun(void) {
 }
 void QSProbeStop(void) {
     probeDelegate.finished = YES;
+    closeCaptureBackground();
     if (!QSProbeCancelStream()) { QSProbeEndRun(); return; }
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         if (NSApp.running) QSProbeEndRun();
@@ -235,7 +317,7 @@ void QSProbeStop(void) {
     [view loadHTMLString:html baseURL:nil];
     [view release]; [configuration release];
     panelProbeCreated(handle);
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 20 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, probeTimeoutMillis * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
         if (!self.finished) panelProbeTimeout();
     });
 }
@@ -247,13 +329,15 @@ void QSProbeStop(void) {
 }
 @end
 
-void QSProbeRun(void) {
+void QSProbeRun(int timeoutMillis) {
     @autoreleasepool {
+        probeTimeoutMillis = timeoutMillis;
         [NSApplication sharedApplication];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
         probeDelegate = [[QSProbeDelegate alloc] init];
         NSApp.delegate = probeDelegate;
         [NSApp run];
+        closeCaptureBackground();
         NSApp.delegate = nil;
         [probeDelegate release]; probeDelegate = nil;
     }

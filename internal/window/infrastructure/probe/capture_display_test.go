@@ -61,3 +61,29 @@ func TestDisplayCaptureUsesItsOwnAPIAndSelectionEvidence(t *testing.T) {
 		t.Fatal("foreign capture source accepted", r)
 	}
 }
+
+func TestOwnedBackgroundControlIsExplicitAndSharesTheFixtureBounds(t *testing.T) {
+	for _, change := range []func(*DisplayCaptureSelection){
+		func(s *DisplayCaptureSelection) { s.WindowCount = 1 },
+		func(s *DisplayCaptureSelection) { s.Background.ExpectedWindowID = 0 },
+		func(s *DisplayCaptureSelection) {
+			s.Background.ExpectedWindowID = s.ExpectedWindowID
+			s.Background.ActualWindowID = s.ExpectedWindowID
+		},
+		func(s *DisplayCaptureSelection) { s.Background.ActualWindowID++ },
+		func(s *DisplayCaptureSelection) { s.Background.OwnerPID++ },
+		func(s *DisplayCaptureSelection) { s.Background.Window.X++ },
+		func(s *DisplayCaptureSelection) { s.Background.Window.Height++ },
+	} {
+		s := displaySelectionFixture()
+		s.WindowCount = 2
+		s.Background = &CaptureBackground{ExpectedWindowID: 11, ActualWindowID: 11, OwnerPID: s.ExpectedOwnerPID, Window: s.Window}
+		if !s.Valid() {
+			t.Fatal("valid owned control rejected", s)
+		}
+		change(&s)
+		if s.Valid() {
+			t.Fatal("foreign or misaligned background accepted", s)
+		}
+	}
+}

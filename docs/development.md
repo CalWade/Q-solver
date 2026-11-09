@@ -25,10 +25,12 @@ make build        # 原生应用打包，不启动应用
 make panel-probe  # macOS：短暂显示隔离原生面板，自动验证并关闭
 make host-probe   # macOS：真实 Wails 宿主进入编辑，再恢复原应用并关闭
 make focus-probe  # macOS：独立可见 Chrome 与真实宿主联合观察焦点；不访问外网
+make protected-session-probe # macOS 15.2+，常驻保护主验收，初次采集及重连各30秒
 make capture-probe # macOS 14+：只捕获合成窗口，对照保护关闭/开启/再次关闭
 make stream-capture-probe # macOS 14+：分别新建短时视频流，核对所有完整帧
 make live-capture-probe # macOS 14+，同一视频流运行时开启、关闭保护并保留全部帧
 make display-capture-probe # macOS 15.2+，显示器过滤器仅包含自建窗口并裁剪其区域
+make display-startup-capture-probe # 采集开始前已保护的目标与自建背景对照，再切换保护
 make keyboard-probe # macOS：真实事件过滤、独立 Chrome 与内部编辑器联合测试
 make compatibility # 校验兼容性记录结构，明确输出未测试数量
 ```
@@ -71,6 +73,12 @@ CI 的 Windows/macOS 测试编译并测试对应适配器，但不会安装全�
 每个阶段至少有 3 个完整帧且时间跨度达到 1.5 秒。前后基线必须以连续三帧可见内容结束。`liveCapture.completed` 表示实验完整，`protectedWindowOutcome=transition-leak` 表示保护开启后仍采到可见帧，`visible` 表示该阶段全部可见，`transparent-with-data` 表示 Alpha 透明但原始 RGB 非零。正常退出与实验完成都须结合结果字段读取。该入口使用短时单窗口流，长时运行、显示器与第三方远端分别验收。
 
 `display-capture-probe` 使用 `SCContentFilter(display:includingWindows:)`，包含名单仅有本进程的合成窗口，采集前核对窗口、进程和显示器身份，并验证裁剪范围与窗口区域一致。该命令要求 macOS 15.2+ 的过滤器名单读回能力。报告位于 `.local/reports/display-capture-probe.json`，完整图像为 `capture-display-<序号>.png`。
+
+`display-startup-capture-probe` 在目标首次显示时保留保护属性，再开始同一个显示器流。初始保护观察至少两秒，之后连续执行关闭、开启、再关闭保护。包含名单仅有目标及同进程、相同位置尺寸的纯黑背景窗口，名单和范围在开始前读回核对。背景属于诊断装置，用于提供独立画面对照。报告位于 `.local/reports/display-startup-capture-probe.json`，`initialProtectedWindowOutcome` 与中途切换的 `protectedWindowOutcome` 分开记录。初始阶段没有图像或输出回调时报告无法确定，不能仅凭流启动确认通过。
+
+`protected-session-probe` 是常驻保护的主验收入口。目标从首次显示前到结束始终保留默认捕获属性，两次采集各至少30秒，第二次重新创建流及过滤器并读回相同来源。包含名单仅有目标及同进程、相同范围的蓝色动态背景。背景提供实际可见的画面对照，目标使用红绿标记。`protectedCapture.completed` 表示诊断完整，`background-only` 表示全部观察只含对照背景，任何已采样红绿像素均报告可见或泄漏。缺图、纯黑、透明、暂停、错误引用和回调空缺均无法通过主验收。
+
+报告位于 `.local/reports/protected-session-probe.json`，原始图像命名为 `capture-protected-<会话>-<序号>.png`。每个会话记录开始及结束时的本地可见性与属性、启动/停止/回调排空时间，实际名单、输出引用及原始RGB。此项复用生产窗口服务及原生适配器，独立AppKit宿主与真实生产Wails页面、会议远端分别验收。
 
 该路径另存每次 SDK 输出。完整图像与 idle 分开计数，idle 继续引用上一张实际收到的图像。显示器的呈现时间可能晚于接收回调，观察端时间线使用实际接收时刻，原始呈现时间仍保留。每阶段输出跨度至少1.5秒，连续通知间隔和边界空缺最多250毫秒，前后基线最后三次观察须可见。缺失透明图像时，idle 仍保持之前的可见图像，判定不会将它视为隐藏成功。该实验范围为只含自建窗口的显示器过滤器。
 
