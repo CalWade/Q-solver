@@ -168,7 +168,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/go/bin/wails
-          key: ${{ runner.os }}-wails-v2-amd64
+          key: ${{ runner.os }}-wails-v2.12.0-amd64
 
       - name: Install Wails
         if: steps.cache-wails.outputs.cache-hit != 'true'

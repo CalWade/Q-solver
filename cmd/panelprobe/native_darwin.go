@@ -4,7 +4,7 @@ package main
 
 /*
 #cgo CFLAGS: -x objective-c -fblocks
-#cgo LDFLAGS: -framework Cocoa -framework WebKit
+#cgo LDFLAGS: -framework Cocoa -framework WebKit -framework ScreenCaptureKit -framework ImageIO
 #include "native_darwin.h"
 */
 import "C"
@@ -25,19 +25,24 @@ var currentProbe *nativeProbe
 func init() { runtime.LockOSThread() }
 
 type nativeProbe struct {
-	report  probe.Report
-	before  int
-	service *application.Service
-	driver  *native.Driver
-	handles map[domain.ID]platform.WindowHandle
+	report         probe.Report
+	before         int
+	service        *application.Service
+	driver         *native.Driver
+	handles        map[domain.ID]platform.WindowHandle
+	captureStarted bool
+	stopped        bool
 }
 
-func runNative() (probe.Report, error) {
+func runNative(capture bool) (probe.Report, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	driver := native.New()
 	currentProbe = &nativeProbe{driver: driver, service: application.New(driver), handles: map[domain.ID]platform.WindowHandle{}, before: int(C.QSProbeForeground())}
 	currentProbe.report.System = C.GoString(C.QSProbeSystem())
+	if capture {
+		currentProbe.report.Capture = &probe.CaptureReport{API: "ScreenCaptureKit.SCScreenshotManager / desktopIndependentWindow"}
+	}
 	C.QSProbeRun()
 	result := currentProbe.report
 	currentProbe = nil
@@ -69,6 +74,10 @@ func (p *nativeProbe) observe(stage string, id domain.ID) {
 	p.report.Observations = append(p.report.Observations, probe.Observation{Stage: stage, Panel: o.panel != 0, Visible: o.visible != 0, NonActivating: o.nonactivating != 0, CanBecomeKey: o.canKey != 0, Key: o.key != 0, Main: o.main != 0, CaptureProperty: o.protectedContent != 0, Alpha: float64(o.alpha), ForegroundUnchanged: int(o.foreground) == p.before})
 }
 func (p *nativeProbe) stop() {
+	if p.stopped {
+		return
+	}
+	p.stopped = true
 	for id := range p.handles {
 		p.close(id)
 	}
@@ -84,7 +93,7 @@ func panelProbeCreated(handle C.uintptr_t) {
 
 //export panelProbeTimeout
 func panelProbeTimeout() {
-	currentProbe.report.Errors = append(currentProbe.report.Errors, "WKWebView fixture did not become ready within 10 seconds")
+	currentProbe.report.Errors = append(currentProbe.report.Errors, "native fixture/capture did not finish within 20 seconds")
 	currentProbe.stop()
 }
 
@@ -92,7 +101,11 @@ func panelProbeTimeout() {
 func panelProbeReady() {
 	p := currentProbe
 	p.report.WebViewReady = true
-	defer p.stop()
+	defer func() {
+		if !p.captureStarted {
+			p.stop()
+		}
+	}()
 	// Even a direct request must not give the passive window keyboard focus.
 	C.QSProbeTryKey(C.uintptr_t(p.handles["main"]))
 	p.observe("shown", "main")
@@ -126,4 +139,38 @@ func panelProbeReady() {
 	if p.service.Status().Captures != 0 {
 		p.check(fmt.Errorf("capture lease remained active"))
 	}
+	if p.report.Capture != nil {
+		p.nextCapture(0)
+	}
+}
+
+func (p *nativeProbe) nextCapture(index int) {
+	if !p.check(p.service.Update(func(policy *domain.Policy) { policy.CaptureProtection = index == 1 })) {
+		p.stop()
+		return
+	}
+	p.captureStarted = true
+	C.QSProbeCapture(C.uintptr_t(p.handles["main"]), C.int(index))
+}
+
+//export panelProbeCaptured
+func panelProbeCaptured(index, width, height C.int, red, green, black, transparent C.double, errorCode C.int) {
+	p := currentProbe
+	if p == nil {
+		return
+	}
+	stages := []string{"baseline-before", "sharing-none", "baseline-after"}
+	i := int(index)
+	if i < 0 || i >= len(stages) {
+		p.check(fmt.Errorf("unexpected capture sample"))
+		p.stop()
+		return
+	}
+	state := C.QSProbeObserve(C.uintptr_t(p.handles["main"]))
+	p.report.Capture.Samples = append(p.report.Capture.Samples, probe.CaptureSample{Stage: stages[i], PropertySet: state.protectedContent != 0, Width: int(width), Height: int(height), RedRatio: float64(red), GreenRatio: float64(green), BlackRatio: float64(black), TransparentRatio: float64(transparent), ErrorCode: int(errorCode)})
+	if errorCode != 0 || i == len(stages)-1 {
+		p.stop()
+		return
+	}
+	p.nextCapture(i + 1)
 }

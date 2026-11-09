@@ -1,0 +1,204 @@
+{
+  "system": "Version 27.0 (Build 26A428)",
+  "webViewReady": true,
+  "observations": [
+    {
+      "stage": "shown",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 1,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "capture-first",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 0,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "capture-nested",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 0,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "secondary-during-capture",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 0,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "first-release",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 0,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "last-release",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 1,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "secondary-restored",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 1,
+      "foregroundUnchanged": true
+    },
+    {
+      "stage": "recreated",
+      "panel": true,
+      "visible": true,
+      "nonActivating": true,
+      "canBecomeKey": false,
+      "key": false,
+      "main": false,
+      "captureProperty": true,
+      "alpha": 1,
+      "foregroundUnchanged": true
+    }
+  ],
+  "checks": [
+    {
+      "name": "WKWebView loaded isolated local fixture",
+      "passed": true
+    },
+    {
+      "name": "shown",
+      "passed": true
+    },
+    {
+      "name": "capture-first",
+      "passed": true
+    },
+    {
+      "name": "capture-nested",
+      "passed": true
+    },
+    {
+      "name": "secondary-during-capture",
+      "passed": true
+    },
+    {
+      "name": "first-release",
+      "passed": true
+    },
+    {
+      "name": "last-release",
+      "passed": true
+    },
+    {
+      "name": "secondary-restored",
+      "passed": true
+    },
+    {
+      "name": "recreated",
+      "passed": true
+    },
+    {
+      "name": "all lifecycle stages observed",
+      "passed": true
+    }
+  ],
+  "limitations": [
+    "仅通过 ScreenCaptureKit 单窗口接口捕获自建合成面板，不采集其他窗口或显示器画面。",
+    "completed 表示对照测试完成；protectedWindowOutcome=visible 表示 sharingType none 未隐藏测试标记。",
+    "透明/留空/标记缺失不等同于窗口从共享源列表消失；成功抓图前仍按 windowID 找到了该窗口。不外推为第三方会议或监考平台结果。"
+  ],
+  "capture": {
+    "api": "ScreenCaptureKit.SCScreenshotManager / desktopIndependentWindow",
+    "samples": [
+      {
+        "stage": "baseline-before",
+        "propertySet": false,
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46838612368024135,
+        "greenRatio": 0.49345399698340875,
+        "opaqueBlackRatio": 0.0010256410256410256,
+        "transparentRatio": 0
+      },
+      {
+        "stage": "sharing-none",
+        "propertySet": true,
+        "width": 195,
+        "height": 85,
+        "redRatio": 0,
+        "greenRatio": 0,
+        "opaqueBlackRatio": 0,
+        "transparentRatio": 1
+      },
+      {
+        "stage": "baseline-after",
+        "propertySet": false,
+        "width": 390,
+        "height": 170,
+        "redRatio": 0.46838612368024135,
+        "greenRatio": 0.49345399698340875,
+        "opaqueBlackRatio": 0.0010256410256410256,
+        "transparentRatio": 0
+      }
+    ],
+    "completed": true,
+    "protectedWindowOutcome": "transparent",
+    "checks": [
+      {
+        "name": "baseline-before",
+        "passed": true
+      },
+      {
+        "name": "sharing-none",
+        "passed": true
+      },
+      {
+        "name": "baseline-after",
+        "passed": true
+      },
+      {
+        "name": "valid baseline/protected/baseline comparison",
+        "passed": true
+      }
+    ]
+  }
+}

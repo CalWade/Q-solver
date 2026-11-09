@@ -11,8 +11,9 @@ import (
 
 func main() {
 	output := flag.String("output", ".local/reports/panel-probe.json", "native observation report")
+	capture := flag.Bool("capture", false, "compare capture of the owned synthetic window with protection off/on/off")
 	flag.Parse()
-	report, err := runNative()
+	report, err := runNative(*capture)
 	if err != nil {
 		report.Errors = append(report.Errors, err.Error())
 	}
@@ -27,6 +28,9 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("Native panel probe: passed=%t; report=%s\n", passed, *output)
+	if report.Capture != nil {
+		fmt.Printf("ScreenCaptureKit diagnostic completed=%t; protected-window outcome=%s (separate from diagnostic completion)\n", report.Capture.Completed, report.Capture.Outcome)
+	}
 	if !passed {
 		os.Exit(1)
 	}

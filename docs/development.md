@@ -23,6 +23,7 @@ make build        # 原生应用打包，不启动应用
 make panel-probe  # macOS：短暂显示隔离原生面板，自动验证并关闭
 make host-probe   # macOS：真实 Wails 宿主进入编辑，再恢复原应用并关闭
 make focus-probe  # macOS：独立可见 Chrome 与真实宿主联合观察焦点；不访问外网
+make capture-probe # macOS 14+：只捕获合成窗口，对照保护关闭/开启/再次关闭
 make compatibility # 校验兼容性记录结构，明确输出未测试数量
 ```
 
@@ -50,3 +51,7 @@ CI 的 Windows/macOS 测试编译并测试对应适配器，但不会安装全�
 `focus-probe` 使用项目锁定的 Playwright 和临时 Chrome 配置，显式关闭工具默认开启的焦点模拟。原生宿主每到一个阶段会等待浏览器观察完成，再继续下一步；原生属性与网页 `document.hasFocus()`、真实 `focus/blur`、可见性和全屏状态一同记录。它不注入网页事件，也不使用个人浏览器配置。第二个用例在编辑中断开控制端，确认焦点归还和进程退出。任一端失败会让完整报告失败；观察器断开或超时也不会无限等待。
 
 联合报告位于 `.local/reports/focus-browser.json`，异常清理报告位于 `focus-disconnected.json`。普通 CI/check 运行证据判定与阶段协议的单元测试；需要图形桌面的原生浏览器测试显式运行 `focus-probe`，不把无图形环境的编译结果当作验收。
+
+`capture-probe` 需要已有屏幕录制权限，仅预检，不自动请求授权。它复用生产窗口服务设置捕获属性，再使用 `SCScreenshotManager` 的单窗口过滤器只捕获自己的合成面板；找不到该窗口就终止，不回退到显示器或其他窗口。报告位于 `.local/reports/capture-probe.json`，三张原始图像为 `capture-sample-0.png` 至 `capture-sample-2.png`。
+
+该命令成功退出只表示对照完成，必须另外读取 `protectedWindowOutcome`：`visible` 是仍可见，`transparent` 是全透明，`blank` 是近乎全黑，`marker_absent` 只说明标记缺失，`inconclusive` 不能下结论。缺失或失败的基线不能作为保护成功的证据。它未运行持续屏幕流、整屏共享或第三方客户端。

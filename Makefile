@@ -1,4 +1,4 @@
-.PHONY: prepare dev check unit integration e2e build bindings panel-probe host-probe focus-probe compatibility
+.PHONY: prepare dev check unit integration e2e build bindings panel-probe host-probe focus-probe capture-probe compatibility
 prepare:
 	node scripts/run.mjs prepare
 dev:
@@ -24,5 +24,7 @@ host-probe:
 	node scripts/run.mjs host-probe
 focus-probe:
 	node scripts/run.mjs focus-probe
+capture-probe:
+	node scripts/run.mjs capture-probe
 compatibility:
 	node scripts/compatibility.mjs

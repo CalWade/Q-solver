@@ -7,6 +7,6 @@ import (
 	"errors"
 )
 
-func runNative() (probe.Report, error) {
+func runNative(bool) (probe.Report, error) {
 	return probe.Report{}, errors.New("panelprobe requires macOS and the existing C toolchain")
 }

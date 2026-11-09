@@ -34,6 +34,16 @@
 
 本项没有向第三方页面投递代码，也未使用物理鼠标/键盘、输入法或屏幕共享。它验证独立页面和当前 Chrome 的焦点路径，矩阵中各真实平台仍保持 `not_run`。
 
+同日在 macOS 27.0（26A428）运行 `capture-probe`，通过 `ScreenCaptureKit.SCScreenshotManager` + `desktopIndependentWindow` 捕获自建面板。只采集该窗口，不采集桌面或其他应用。三个连续样本见 [捕获报告](evidence/macos-27-sck-window-2026-11-09.json)。
+
+| 捕获属性 | 实际图像 | 像素观察 |
+| --- | --- | --- |
+| 关闭保护 | [前基线](evidence/macos-27-sck-before.png)，390×170 | 红色占 46.84%，绿色占 49.35%，透明占 0% |
+| sharingType none | [开启保护](evidence/macos-27-sck-protected.png)，195×85 | 红绿标记均为 0%，透明占 100% |
+| 再次关闭保护 | [后基线](evidence/macos-27-sck-after.png)，390×170 | 与前基线相同，内容恢复 |
+
+结果是该路径返回透明内容。窗口仍能在 `SCShareableContent` 中按 windowID 找到，不能解释为源列表不可枚举。本次也没有测试连续 `SCStream`、整屏捕获或会议远端；不能把“ScreenCaptureKit”当作只有一种固定结果的单一接口。三张图像都是合成测试内容，保留了原始字节，未做图像编辑。
+
 ## 平台矩阵
 
 [matrix.json](matrix.json) 当前有 60 个待测组合：macOS/Windows 各覆盖腾讯会议、飞书会议、钉钉会议、Zoom、Google Meet、Microsoft Teams、企业微信的整屏与单窗口共享；牛客、赛码、HackerRank、Codility 的屏幕共享、被动输出焦点、显式编辑焦点和键盘传播场景。

@@ -91,16 +91,17 @@ try {
     case 'build': await run(await wails(), ['build', '-tags', 'prod']); await normalizeBindings(); break
     case 'panel-probe':
     case 'host-probe':
+    case 'capture-probe':
     case 'focus-probe': {
       if (process.platform !== 'darwin') throw new Error('The native panel probe currently requires macOS.')
       await mkdir(resolve(root, '.local/bin'), { recursive: true })
-      const target = command === 'panel-probe' ? 'panelprobe' : 'hostprobe'
+      const target = ['panel-probe', 'capture-probe'].includes(command) ? 'panelprobe' : 'hostprobe'
       const executable = resolve(root, '.local/bin', target)
       await run('go', ['build', '-tags', 'production', '-o', executable, `./cmd/${target}`])
       if (command === 'focus-probe') await run(npm, ['run', 'test:native'], frontend)
-      else await run(executable, [])
+      else await run(executable, command === 'capture-probe' ? ['-capture', '-output', '.local/reports/capture-probe.json'] : [])
       break
     }
-    default: throw new Error('Usage: node scripts/run.mjs [prepare|dev|harness|doctor|check|bindings|build|panel-probe|host-probe|focus-probe]')
+    default: throw new Error('Usage: node scripts/run.mjs [prepare|dev|harness|doctor|check|bindings|build|panel-probe|host-probe|focus-probe|capture-probe]')
   }
 } catch (error) { console.error(error.message); await shutdown(); process.exitCode = 1 }

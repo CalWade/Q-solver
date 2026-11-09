@@ -19,12 +19,13 @@ type Check struct {
 	Passed bool   `json:"passed"`
 }
 type Report struct {
-	System       string        `json:"system"`
-	WebViewReady bool          `json:"webViewReady"`
-	Observations []Observation `json:"observations"`
-	Checks       []Check       `json:"checks"`
-	Errors       []string      `json:"errors,omitempty"`
-	Limitations  []string      `json:"limitations"`
+	System       string         `json:"system"`
+	WebViewReady bool           `json:"webViewReady"`
+	Observations []Observation  `json:"observations"`
+	Checks       []Check        `json:"checks"`
+	Errors       []string       `json:"errors,omitempty"`
+	Limitations  []string       `json:"limitations"`
+	Capture      *CaptureReport `json:"capture,omitempty"`
 }
 
 func (r *Report) Evaluate() bool {
@@ -45,6 +46,14 @@ func (r *Report) Evaluate() bool {
 		"没有使用真实会议、公司群、笔试平台、模型凭据或全局键盘钩子。",
 	}
 	passed := len(r.Errors) == 0
+	if r.Capture != nil {
+		passed = r.Capture.Evaluate() && passed
+		r.Limitations = []string{
+			"仅通过 ScreenCaptureKit 单窗口接口捕获自建合成面板，不采集其他窗口或显示器画面。",
+			"completed 表示对照测试完成；protectedWindowOutcome=visible 表示 sharingType none 未隐藏测试标记。",
+			"透明/留空/标记缺失不等同于窗口从共享源列表消失；成功抓图前仍按 windowID 找到了该窗口。不外推为第三方会议或监考平台结果。",
+		}
+	}
 	for _, check := range r.Checks {
 		passed = passed && check.Passed
 	}
