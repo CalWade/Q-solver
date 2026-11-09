@@ -31,7 +31,7 @@ jobs:
       - run: node scripts/run.mjs prepare
       - run: npm test
         working-directory: frontend
-      - run: node --test scripts/framework.test.mjs scripts/toolchain.test.mjs scripts/compatibility.test.mjs
+      - run: node --test scripts/framework.test.mjs scripts/toolchain.test.mjs scripts/compatibility.test.mjs scripts/focus-evidence.test.mjs
       - run: node scripts/compatibility.mjs
       - run: npm run build
         working-directory: frontend

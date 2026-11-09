@@ -7,6 +7,6 @@ import (
 	"errors"
 )
 
-func runHost() (probe.HostReport, error) {
+func runHost(func(string) error) (probe.HostReport, error) {
 	return probe.HostReport{}, errors.New("hostprobe currently requires macOS and the C toolchain")
 }

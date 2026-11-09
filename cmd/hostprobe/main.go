@@ -1,17 +1,31 @@
 package main
 
 import (
+	"Q-Solver/internal/window/infrastructure/probe"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 func main() {
 	output := flag.String("output", ".local/reports/host-probe.json", "native host report")
+	controlled := flag.Bool("controlled", false, "wait for an independent observer to acknowledge each stage on stdin")
 	flag.Parse()
-	report, err := runHost()
+	var observe func(string) error
+	if *controlled {
+		gate := probe.NewStageGate(os.Stdin, os.Stdout)
+		defer gate.Close()
+		observe = func(stage string) error {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			return gate.Wait(ctx, stage)
+		}
+	}
+	report, err := runHost(observe)
 	if err != nil {
 		report.Errors = append(report.Errors, err.Error())
 	}

@@ -22,6 +22,7 @@ make check        # 前端测试/构建、全量 Go race 测试、E2E
 make build        # 原生应用打包，不启动应用
 make panel-probe  # macOS：短暂显示隔离原生面板，自动验证并关闭
 make host-probe   # macOS：真实 Wails 宿主进入编辑，再恢复原应用并关闭
+make focus-probe  # macOS：独立可见 Chrome 与真实宿主联合观察焦点；不访问外网
 make compatibility # 校验兼容性记录结构，明确输出未测试数量
 ```
 
@@ -45,3 +46,7 @@ CI 的 Windows/macOS 测试编译并测试对应适配器，但不会安装全�
 隔离环境的副机页面在 `http://127.0.0.1:4173/broadcast/`。测试用模型可逐段输出、延迟、报错及故意发送旧回调；它复用生产请求服务和模型端口，不读取真实密钥。原生报告写入 `.local/reports/panel-probe.json` 和 `host-probe.json`。普通 `check` 不启动原生窗口；两个 probe 是独立、可自主运行的原生验收入口，`host-probe` 会短暂获取编辑焦点。直接编译该宿主须使用 Wails 的 `production` 标签；项目自有的 `prod` 标签不能代替它，统一脚本已处理这一区别。
 
 `node scripts/compatibility.mjs --require-complete` 用于真正的平台验收门槛：有未测试项、缺失版本/证据、缺失独立接收端或不确定结果都会失败。普通结构校验通过不等于兼容性验证通过。
+
+`focus-probe` 使用项目锁定的 Playwright 和临时 Chrome 配置，显式关闭工具默认开启的焦点模拟。原生宿主每到一个阶段会等待浏览器观察完成，再继续下一步；原生属性与网页 `document.hasFocus()`、真实 `focus/blur`、可见性和全屏状态一同记录。它不注入网页事件，也不使用个人浏览器配置。第二个用例在编辑中断开控制端，确认焦点归还和进程退出。任一端失败会让完整报告失败；观察器断开或超时也不会无限等待。
+
+联合报告位于 `.local/reports/focus-browser.json`，异常清理报告位于 `focus-disconnected.json`。普通 CI/check 运行证据判定与阶段协议的单元测试；需要图形桌面的原生浏览器测试显式运行 `focus-probe`，不把无图形环境的编译结果当作验收。

@@ -56,6 +56,17 @@ type hostProbe struct {
 	pageReady  chan struct{}
 	textResult chan bool
 	done       chan struct{}
+	observer   func(string) error
+}
+
+func (p *hostProbe) acknowledge(stage string) bool {
+	if p.observer != nil {
+		if err := p.observer(stage); err != nil {
+			p.report.Errors = append(p.report.Errors, err.Error())
+			return false
+		}
+	}
+	return true
 }
 
 func (p *hostProbe) observe(stage string) probe.HostObservation {
@@ -96,6 +107,9 @@ func (p *hostProbe) exercise(ctx context.Context) {
 	p.poll("startup-passive", func(o probe.HostObservation) bool {
 		return o.Panel && o.NonActivating && !o.CanBecomeKey && !o.Key && o.ForegroundRestored
 	})
+	if !p.acknowledge("startup-passive") {
+		return
+	}
 	if err := p.manager.RestoreFocus(); err != nil {
 		p.report.Errors = append(p.report.Errors, err.Error())
 	}
@@ -109,13 +123,17 @@ func (p *hostProbe) exercise(ctx context.Context) {
 	case <-time.After(3 * time.Second):
 		p.report.Errors = append(p.report.Errors, "editor bridge timed out")
 	}
+	if !p.acknowledge("explicit-editor") {
+		return
+	}
 	if err := p.manager.RemoveFocus(); err != nil {
 		p.report.Errors = append(p.report.Errors, err.Error())
 	}
 	p.poll("returned-passive", func(o probe.HostObservation) bool { return !o.CanBecomeKey && !o.Key && o.ForegroundRestored })
+	p.acknowledge("returned-passive")
 }
-func runHost() (probe.HostReport, error) {
-	p := &hostProbe{before: int(C.QSHostForeground()), manager: state.NewStateManager(), pageReady: make(chan struct{}, 1), textResult: make(chan bool, 1), done: make(chan struct{})}
+func runHost(observer func(string) error) (probe.HostReport, error) {
+	p := &hostProbe{before: int(C.QSHostForeground()), manager: state.NewStateManager(), pageReady: make(chan struct{}, 1), textResult: make(chan bool, 1), done: make(chan struct{}), observer: observer}
 	p.report.System = C.GoString(C.QSHostSystem())
 	p.report.Host = "Wails v2.12.0 with pinned passive-panel patch"
 	err := wails.Run(&options.App{Title: "Q-solver isolated host check", Width: 460, Height: 220, StartHidden: true,

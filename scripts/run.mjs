@@ -83,22 +83,24 @@ try {
       await run(npm, ['test'], frontend)
       await run(npm, ['run', 'build'], frontend)
       await run('go', ['test', '-race', './...'])
-      await run(process.execPath, ['--test', 'scripts/framework.test.mjs', 'scripts/toolchain.test.mjs', 'scripts/compatibility.test.mjs', 'scripts/run.test.mjs'])
+      await run(process.execPath, ['--test', 'scripts/framework.test.mjs', 'scripts/toolchain.test.mjs', 'scripts/compatibility.test.mjs', 'scripts/focus-evidence.test.mjs', 'scripts/run.test.mjs'])
       await run(process.execPath, ['scripts/compatibility.mjs'])
       await run(npm, ['run', 'test:e2e'], frontend)
       break
     case 'bindings': await run(await wails(), ['generate', 'module']); await normalizeBindings(); break
     case 'build': await run(await wails(), ['build', '-tags', 'prod']); await normalizeBindings(); break
     case 'panel-probe':
-    case 'host-probe': {
+    case 'host-probe':
+    case 'focus-probe': {
       if (process.platform !== 'darwin') throw new Error('The native panel probe currently requires macOS.')
       await mkdir(resolve(root, '.local/bin'), { recursive: true })
-      const target = command === 'host-probe' ? 'hostprobe' : 'panelprobe'
+      const target = command === 'panel-probe' ? 'panelprobe' : 'hostprobe'
       const executable = resolve(root, '.local/bin', target)
       await run('go', ['build', '-tags', 'production', '-o', executable, `./cmd/${target}`])
-      await run(executable, [])
+      if (command === 'focus-probe') await run(npm, ['run', 'test:native'], frontend)
+      else await run(executable, [])
       break
     }
-    default: throw new Error('Usage: node scripts/run.mjs [prepare|dev|harness|doctor|check|bindings|build|panel-probe|host-probe]')
+    default: throw new Error('Usage: node scripts/run.mjs [prepare|dev|harness|doctor|check|bindings|build|panel-probe|host-probe|focus-probe]')
   }
 } catch (error) { console.error(error.message); await shutdown(); process.exitCode = 1 }

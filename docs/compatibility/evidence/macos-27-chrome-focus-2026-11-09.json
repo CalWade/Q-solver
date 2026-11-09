@@ -1,0 +1,148 @@
+{
+  "recordedAt": "2026-11-09T02:59:21.916Z",
+  "browser": "156.0.8078.80",
+  "native": {
+    "system": "Version 27.0 (Build 26A428)",
+    "host": "Wails v2.12.0 with pinned passive-panel patch",
+    "pageReady": true,
+    "textRoundTrip": true,
+    "observations": [
+      {
+        "stage": "startup-passive",
+        "panel": true,
+        "nonActivating": true,
+        "hasEditingGate": true,
+        "canBecomeKey": false,
+        "key": false,
+        "foregroundIsApp": false,
+        "foregroundRestored": true
+      },
+      {
+        "stage": "explicit-editor",
+        "panel": true,
+        "nonActivating": true,
+        "hasEditingGate": true,
+        "canBecomeKey": true,
+        "key": true,
+        "foregroundIsApp": true,
+        "foregroundRestored": false
+      },
+      {
+        "stage": "returned-passive",
+        "panel": true,
+        "nonActivating": true,
+        "hasEditingGate": true,
+        "canBecomeKey": false,
+        "key": false,
+        "foregroundIsApp": false,
+        "foregroundRestored": true
+      }
+    ],
+    "checks": [
+      {
+        "name": "real Wails page and bridge ready",
+        "passed": true
+      },
+      {
+        "name": "explicit editor DOM focus and text round trip",
+        "passed": true
+      },
+      {
+        "name": "startup-passive",
+        "passed": true
+      },
+      {
+        "name": "explicit-editor",
+        "passed": true
+      },
+      {
+        "name": "returned-passive",
+        "passed": true
+      },
+      {
+        "name": "all host transitions observed",
+        "passed": true
+      }
+    ],
+    "limitations": [
+      "运行固定补丁的真实 Wails 2 宿主与生产窗口管理器；没有调用模型或真实平台账号。",
+      "文本由隔离页面程序写入，用于验证 WebView 焦点及桥接；不是物理按键或中文输入法验收。",
+      "没有捕获屏幕或会议远端画面，也未验证外部浏览器的监测事件。"
+    ]
+  },
+  "observations": [
+    {
+      "stage": "startup-passive",
+      "focused": true,
+      "visibility": "visible",
+      "fullscreen": false,
+      "events": [],
+      "focusEmulationDisabled": true
+    },
+    {
+      "stage": "explicit-editor",
+      "focused": false,
+      "visibility": "visible",
+      "fullscreen": false,
+      "events": [
+        {
+          "type": "blur",
+          "trusted": true,
+          "at": 2348.4000000059605
+        }
+      ],
+      "focusEmulationDisabled": true
+    },
+    {
+      "stage": "returned-passive",
+      "focused": true,
+      "visibility": "visible",
+      "fullscreen": false,
+      "events": [
+        {
+          "type": "blur",
+          "trusted": true,
+          "at": 2348.4000000059605
+        },
+        {
+          "type": "focus",
+          "trusted": true,
+          "at": 2457.5
+        }
+      ],
+      "focusEmulationDisabled": true
+    }
+  ],
+  "errors": [],
+  "passed": true,
+  "checks": [
+    {
+      "name": "all browser stages observed once and in order",
+      "passed": true
+    },
+    {
+      "name": "startup-passive: real page focus and event evidence",
+      "passed": true
+    },
+    {
+      "name": "explicit-editor: real page focus and event evidence",
+      "passed": true
+    },
+    {
+      "name": "returned-passive: real page focus and event evidence",
+      "passed": true
+    },
+    {
+      "name": "native host completed all checks",
+      "passed": true
+    },
+    {
+      "name": "observer runner completed",
+      "passed": true
+    }
+  ],
+  "limitations": [
+    "独立临时 Chrome 页面，关闭 Playwright 焦点模拟；不是第三方平台结果。",
+    "没有注入物理鼠标/键盘、验证输入法或采集屏幕共享。显式编辑预期产生外部页面 blur。"
+  ]
+}

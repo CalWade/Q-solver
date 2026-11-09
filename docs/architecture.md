@@ -78,4 +78,6 @@ Wails 3.1.0 已有 NSPanel 选项，但其 `WebviewPanel.canBecomeKeyWindow` 返
 
 `cmd/hostprobe` 运行相同的补丁宿主和生产 StateManager，加载本地合成输入框，自动验证启动被动、显式编辑及返回被动。系统焦点与 WebView 焦点异步到达，测试分别等待并确认，不使用固定睡眠推断成功。页面加载失败也会超时退出。此项不等同于物理按键、中文输入法或第三方平台验收。
 
+联合验证通过独立阶段协议连接宿主与 Chrome：宿主保持当前阶段，外部浏览器读取自身焦点和事件后才确认继续。协议只用于测试命令，不进入生产业务。关闭 Playwright 的焦点模拟，以系统生成的可信事件验证显式编辑确实导致外部页面失焦。观察器退出、错误确认或超时会结束原生测试并恢复焦点；单元与原生 E2E 都覆盖该清理行为。
+
 版本固定的参考：[Wails 3.1.0 面板实现](https://github.com/wailsapp/wails/blob/v3.1.0/v3/pkg/application/webview_panel_darwin.m)、[Wails 面板选项](https://wails.io/features/windows/options/)、[Apple becomesKeyOnlyIfNeeded](https://developer.apple.com/documentation/appkit/nspanel/becomeskeyonlyifneeded)。
