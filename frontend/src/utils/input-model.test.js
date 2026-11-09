@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createRecorder, createEditingCoordinator, createEditingIntents, isTextEditor, modifierFamily, protectionStatus } from './input-model.js'
+import { createRecorder, createEditingCoordinator, createEditingIntents, beginDialogEditing, endDialogEditing, isTextEditor, modifierFamily, protectionStatus } from './input-model.js'
 
 test('recording preserves the largest chord and deduplicates repeats', () => {
   let result
@@ -90,6 +90,63 @@ test('failed editing update is reported and a later request can retry', async ()
   await assert.rejects(coordinator.set(true), /failed/)
   await coordinator.set(true)
   assert.equal(count, 2); assert.equal(failures, 1)
+})
+
+test('cancelling an uncertain editing update explicitly reconciles the native state', async () => {
+  const calls = []
+  const coordinator = createEditingCoordinator(async value => {
+    calls.push(value)
+    return value ? 'partial transition' : ''
+  })
+  await assert.rejects(coordinator.set(true), /partial transition/)
+  await coordinator.set(false)
+  assert.deepEqual(calls, [true, false])
+})
+
+test('dialog editing acquires focus and releases all dialog reasons on close', async () => {
+  const calls = []
+  const editing = {
+    async focus(value) { calls.push(['focus', value]) },
+    async reason(name, value) { calls.push([name, value]) },
+  }
+  const windowApi = {
+    async restoreFocus() { calls.push(['acquire']) },
+    async removeFocus() { calls.push(['release']) },
+  }
+  await beginDialogEditing(editing, windowApi)
+  await endDialogEditing(editing, windowApi)
+  assert.deepEqual(calls, [['focus', true], ['dialog', true], ['acquire'], ['release'], ['recording', false], ['text', false], ['dialog', false]])
+})
+
+test('failed focus acquisition rolls back dialog intent and native focus', async () => {
+  const calls = []
+  const editing = {
+    async focus() {},
+    async reason(name, active) { calls.push([name, active]) },
+  }
+  const windowApi = {
+    async restoreFocus() { throw new Error('foreground denied') },
+    async removeFocus() { calls.push(['released']) },
+  }
+  await assert.rejects(beginDialogEditing(editing, windowApi), /foreground denied/)
+  assert.deepEqual(calls, [['dialog', true], ['released'], ['recording', false], ['text', false], ['dialog', false]])
+})
+
+test('focus cleanup runs even when keyboard cleanup throws synchronously', async () => {
+  const calls = []
+  const editing = { reason(name) { calls.push(name); throw new Error(`failed ${name}`) } }
+  await assert.rejects(endDialogEditing(editing, { async removeFocus() { calls.push('release') } }), /failed recording/)
+  assert.deepEqual(calls, ['release', 'recording', 'text', 'dialog'])
+})
+
+test('keyboard repair settings still acquire native focus when keyboard pause is unavailable', async () => {
+  let focused = false
+  const editing = {
+    async focus() { throw new Error('driver unavailable') },
+    async reason() { throw new Error('driver unavailable') },
+  }
+  await beginDialogEditing(editing, { async restoreFocus() { focused = true } })
+  assert.equal(focused, true)
 })
 
 test('status labels distinguish desired state from successful activation', () => {

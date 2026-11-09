@@ -96,6 +96,48 @@ test('listener failure is visible and saving cannot report it repaired', async (
   await expect(page.getByTestId('keyboard-status')).not.toContainText('尚未生效')
 })
 
+test('failed native focus keeps settings closed and a retry reconciles passive state', async ({ page, request }) => {
+  await rpc(request, 'HarnessFailWindow', 'input')
+  await page.getByTitle('设置', { exact: true }).click()
+  await expect(page.getByText(/simulated input failure/).first()).toBeVisible()
+  await expect(page.locator('#settings-modal')).toBeHidden()
+  await expect.poll(async () => (await rpc(request, 'GetWindowStatus')).desired.inputMode).toBe('passive')
+  await rpc(request, 'HarnessFailWindow', '')
+  expect(await rpc(request, 'RetryWindowPolicy')).toBe('')
+  await openSettings(page)
+  await expect.poll(async () => (await rpc(request, 'GetWindowStatus')).desired.inputMode).toBe('editing')
+  await page.getByRole('button', { name: '关闭设置', exact: true }).click()
+  await expect.poll(async () => (await rpc(request, 'GetWindowStatus')).windows[0].applied.inputMode).toBe('passive')
+})
+
+test('closing settings returns native focus even if keyboard cleanup fails', async ({ page, request }) => {
+  await openSettings(page)
+  await rpc(request, 'HarnessFailDriver')
+  await page.getByRole('button', { name: '关闭设置', exact: true }).click()
+  await expect(page.locator('#settings-modal')).toBeHidden()
+  await expect.poll(async () => (await rpc(request, 'GetWindowStatus')).windows[0].applied.inputMode).toBe('passive')
+})
+
+test('repeated settings clicks share one pending native focus acquisition', async ({ page }) => {
+  let restoreCalls = 0
+  let releaseFocus
+  const gate = new Promise(resolve => { releaseFocus = resolve })
+  await page.route('**/rpc/RestoreFocus', async route => {
+    restoreCalls++
+    await gate
+    await route.continue()
+  })
+  try {
+    await page.getByTitle('设置', { exact: true }).evaluate(button => { button.click(); button.click() })
+    await expect.poll(() => restoreCalls).toBeGreaterThan(0)
+    releaseFocus()
+    await expect(page.locator('#settings-modal')).toBeVisible()
+    expect(restoreCalls).toBe(1)
+  } finally {
+    releaseFocus()
+  }
+})
+
 test('capture policy is independent of local visibility and a native failure remains visible', async ({ page, request }) => {
   await openSettings(page)
   const protection = page.getByLabel('启用屏幕捕获保护', { exact: true })

@@ -182,8 +182,10 @@
 
 1. 将捕获主验收接到正式Wails宿主创建的窗口，使用隔离合成内容验证常驻保护和基本交互。
 2. 使用独立接收端及测试会议、模拟考试入口核对macOS实际共享和网页焦点、快捷键行为。60项是初始候选组合，平台支持范围和入口确认后调整适用项。
-3. Windows云端单元、集成及打包已有通过记录，实机验证按用户要求暂缓。编辑结束归还原应用的实现待补齐。
+3. Windows窗口操作、编辑焦点归还、失败恢复及状态读回已补齐代码和替代系统接口测试，实机验证按用户要求暂缓。
 
 按用户2026-11-09的调整，物理设备、输入法细节、长时运行和休眠等扩展验证移出本轮验收。历史证据保留各自已观察范围。
+
+平台场景的执行、自动化接入及证据记录由Agent承担。独立测试入口、必要登录、首次系统授权和接收资源在相应平台接入时确认。当前候选矩阵仍待真实平台记录，替代系统接口测试只验证代码规则与失败处理。
 
 参考：[Wails 3.1.0 WebviewPanel](https://github.com/wailsapp/wails/blob/v3.1.0/v3/pkg/application/webview_panel_darwin.m) 的 `canBecomeKeyWindow` 返回 YES；[官方面板选项](https://wails.io/features/windows/options/) 提供 NonActivating 和 BecomesKeyOnlyIfNeeded。因此“换到支持 panel 的框架”本身还不能证明被动面板不改变键盘焦点。

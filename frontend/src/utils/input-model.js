@@ -53,16 +53,19 @@ export function createRecorder({ complete, cancel }) {
 export function createEditingCoordinator(setEditing, onError = () => {}) {
   let desired = false
   let applied = false
+  let uncertain = false
   let queue = Promise.resolve()
   return {
     set(value) {
       desired = Boolean(value)
       queue = queue.catch(() => {}).then(async () => {
         const next = desired
-        if (next === applied) return
+        if (next === applied && !uncertain) return
+        uncertain = true
         const error = await setEditing(next)
         if (error) throw new Error(error)
         applied = next
+        uncertain = false
       }).catch(error => { onError(error); throw error })
       return queue
     },
@@ -79,4 +82,31 @@ export function createEditingIntents(setEditing, onError) {
     focus(active) { focused = active; return update() },
     clear() { reasons.clear(); return update() },
   }
+}
+
+export async function beginDialogEditing(editing, windowApi) {
+  // Keep permission-repair settings accessible when the keyboard service is
+  // unavailable. The editing coordinator reports those failures separately.
+  await Promise.allSettled([
+    Promise.resolve().then(() => editing.focus(true)),
+    Promise.resolve().then(() => editing.reason('dialog', true)),
+  ])
+  try {
+    await windowApi.restoreFocus()
+  } catch (error) {
+    try {
+      await endDialogEditing(editing, windowApi)
+    } catch (cleanupError) {
+      throw new AggregateError([error, cleanupError], `${error.message}，${cleanupError.message}`)
+    }
+    throw error
+  }
+}
+
+export async function endDialogEditing(editing, windowApi) {
+  const focusOutcome = await Promise.allSettled([Promise.resolve().then(() => windowApi.removeFocus())])
+  const operations = ['recording', 'text', 'dialog'].map(reason => () => editing.reason(reason, false))
+  const outcomes = await Promise.allSettled(operations.map(operation => Promise.resolve().then(operation)))
+  const errors = [...focusOutcome, ...outcomes].filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason)
+  if (errors.length) throw new AggregateError(errors, errors.map(error => error.message).join('，'))
 }

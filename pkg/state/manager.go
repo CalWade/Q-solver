@@ -75,13 +75,13 @@ func (sm *StateManager) RegisterWindow(id domain.ID, handle platform.WindowHandl
 }
 func (sm *StateManager) UnregisterWindow(id domain.ID) {
 	sm.windows.Unregister(id)
-	sm.driver.Unbind(id)
+	err := sm.driver.Unbind(id)
 	if id == "main" {
 		sm.windowMu.Lock()
 		sm.hwnd = 0
 		sm.windowMu.Unlock()
 	}
-	sm.publish(nil)
+	sm.publish(err)
 }
 func (sm *StateManager) GetHwnd() platform.WindowHandle {
 	sm.windowMu.RLock()

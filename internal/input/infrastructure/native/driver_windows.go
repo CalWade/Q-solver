@@ -79,6 +79,13 @@ func RequestPermission() bool { return true }
 func (d *Driver) Start(callbacks application.Callbacks) (application.Capabilities, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.done != nil {
+		select {
+		case <-d.done:
+		default:
+			return application.Capabilities{}, fmt.Errorf("键盘监听已启动")
+		}
+	}
 	d.callbacks = callbacks
 	d.done = make(chan struct{})
 	d.requests = make(chan applyRequest, 1)
@@ -87,6 +94,9 @@ func (d *Driver) Start(callbacks application.Callbacks) (application.Capabilitie
 	ready := make(chan error, 1)
 	go d.run(ready)
 	err := <-ready
+	if err != nil {
+		<-d.done
+	}
 	return application.Capabilities{Filtering: err == nil, Backend: "windows-hook-and-hotkeys"}, err
 }
 
@@ -105,6 +115,14 @@ func (d *Driver) Apply(plan application.NativePlan) error {
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.done == nil {
+		return fmt.Errorf("键盘监听尚未启动")
+	}
+	select {
+	case <-d.done:
+		return fmt.Errorf("键盘监听线程已停止")
+	default:
+	}
 	req := applyRequest{plan: plan, result: make(chan error, 1)}
 	select {
 	case <-d.done:

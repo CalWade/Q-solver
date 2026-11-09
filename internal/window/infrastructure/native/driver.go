@@ -25,7 +25,13 @@ func (d *Driver) Bind(id domain.ID, handle platform.WindowHandle) error {
 	d.handles[id] = handle
 	return nil
 }
-func (d *Driver) Unbind(id domain.ID) { d.mu.Lock(); delete(d.handles, id); d.mu.Unlock() }
+func (d *Driver) Unbind(id domain.ID) error {
+	d.mu.Lock()
+	handle := d.handles[id]
+	delete(d.handles, id)
+	d.mu.Unlock()
+	return platform.ReleaseWindowState(uintptr(handle))
+}
 func (d *Driver) handle(id domain.ID) (platform.WindowHandle, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()

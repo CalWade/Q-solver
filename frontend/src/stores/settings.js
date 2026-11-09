@@ -3,7 +3,7 @@ import { reactive, ref, computed, watch } from 'vue'
 import { api } from '../services/api'
 import { useUIStore } from './ui'
 import { currentTheme, setTheme } from '../services/theme'
-import { createRecorder } from '../utils/input-model'
+import { createRecorder, beginDialogEditing, endDialogEditing } from '../utils/input-model'
 import { inputEditing } from '../services/input-editing'
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -320,12 +320,18 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  let openingSettings = false
   async function openSettings() {
+    if (openingSettings || ui.showSettings) return
+    openingSettings = true
     try {
-      inputEditing.focus(true).catch(() => {})
-      await inputEditing.reason('dialog', true)
-      await api.restoreFocus()
-    } catch (error) { ui.showToast(error.message || '无法进入设置', 'warning') }
+      await beginDialogEditing(inputEditing, api)
+    } catch (error) {
+      ui.showToast(error.message || '无法进入设置', 'warning')
+      return
+    } finally {
+      openingSettings = false
+    }
     Object.assign(tempSettings, JSON.parse(JSON.stringify(settings)))
     Object.assign(tempShortcuts, JSON.parse(JSON.stringify(shortcuts)))
     ui.connectionStatus = null
@@ -344,10 +350,7 @@ export const useSettingsStore = defineStore('settings', () => {
     if (stopRecorder) stopRecorder()
     recordVersion++
     try {
-      await inputEditing.reason('recording', false)
-      await inputEditing.reason('text', false)
-      await inputEditing.reason('dialog', false)
-      await api.removeFocus()
+      await endDialogEditing(inputEditing, api)
     } catch (error) { ui.showToast(error.message || '恢复键盘模式失败，请重新检查', 'warning') }
     ui.showSettings = false
     recordingAction.value = null

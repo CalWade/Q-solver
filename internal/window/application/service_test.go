@@ -229,3 +229,29 @@ func TestRetryingCaptureDoesNotReacquireEditorFocus(t *testing.T) {
 		}
 	}
 }
+
+func TestCancelledFailedInputModeIsReappliedBeforeAcknowledgingPassive(t *testing.T) {
+	driver := &fakeDriver{}
+	service := New(driver)
+	if err := service.Register("main"); err != nil {
+		t.Fatal(err)
+	}
+	driver.fail = "input"
+	if err := service.Update(func(p *domain.Policy) { p.InputMode = domain.Editing }); err == nil {
+		t.Fatal("failed editing transition accepted")
+	}
+	if !service.Status().Windows[0].InputModePending {
+		t.Fatal("partial transition was forgotten")
+	}
+	driver.fail = ""
+	driver.calls = nil
+	if err := service.Update(func(p *domain.Policy) { p.InputMode = domain.Passive }); err != nil {
+		t.Fatal(err)
+	}
+	if !service.Status().Windows[0].Ready || service.Status().Windows[0].InputModePending {
+		t.Fatal(service.Status())
+	}
+	if !strings.Contains(strings.Join(driver.calls, ","), "main:input:passive") {
+		t.Fatal("cancel acknowledged passive without reconciling native effects", driver.calls)
+	}
+}

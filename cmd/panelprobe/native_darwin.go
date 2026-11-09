@@ -97,7 +97,7 @@ func (p *nativeProbe) close(id domain.ID) {
 		return
 	}
 	p.service.Unregister(id)
-	p.driver.Unbind(id)
+	p.check(p.driver.Unbind(id))
 	delete(p.handles, id)
 	C.QSProbeClose(C.uintptr_t(handle))
 }

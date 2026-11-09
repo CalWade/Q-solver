@@ -48,8 +48,11 @@ type Window struct {
 	Applied           Policy        `json:"applied"`
 	Capture           CaptureResult `json:"capture"`
 	CaptureSuppressed bool          `json:"captureSuppressed"`
-	Ready             bool          `json:"ready"`
-	Error             string        `json:"error,omitempty"`
+	// An interrupted native mode change must be reconciled even if cancelled.
+	InputModePending  bool   `json:"-"`
+	VisibilityPending bool   `json:"-"`
+	Ready             bool   `json:"ready"`
+	Error             string `json:"error,omitempty"`
 }
 type Status struct {
 	Desired  Policy   `json:"desired"`

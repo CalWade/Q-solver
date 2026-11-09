@@ -90,10 +90,12 @@ func (s *Service) apply(id domain.ID) (err error) {
 	// Failed effects are retried in full; a successful field is acknowledged only
 	// after the driver completed it. In particular no optimistic "hidden" flag.
 	if !next.Visible && (w.Applied.Visible || !w.Ready) {
+		w.VisibilityPending = true
 		if err = s.driver.SetVisible(id, false); err != nil {
 			return
 		}
 		w.Applied.Visible = false
+		w.VisibilityPending = false
 	}
 	if !w.Ready || next.CaptureProtection != w.Applied.CaptureProtection {
 		var result domain.CaptureResult
@@ -105,10 +107,12 @@ func (s *Service) apply(id domain.ID) (err error) {
 		w.Applied.CaptureProtection = next.CaptureProtection
 	}
 	// Retrying an unrelated property must not reacquire keyboard focus.
-	if next.InputMode != w.Applied.InputMode {
+	if next.InputMode != w.Applied.InputMode || w.InputModePending {
+		w.InputModePending = true
 		if err = s.driver.SetInputMode(id, next.InputMode); err != nil {
 			return
 		}
+		w.InputModePending = false
 		w.Applied.InputMode = next.InputMode
 	}
 	if !w.Ready || next.ClickThrough != w.Applied.ClickThrough {
@@ -130,11 +134,13 @@ func (s *Service) apply(id domain.ID) (err error) {
 		}
 		w.CaptureSuppressed = suppressed
 	}
-	if next.Visible && !w.Applied.Visible {
+	if next.Visible && (!w.Applied.Visible || w.VisibilityPending) {
+		w.VisibilityPending = true
 		if err = s.driver.SetVisible(id, true); err != nil {
 			return
 		}
 		w.Applied.Visible = true
+		w.VisibilityPending = false
 	}
 	return
 }
